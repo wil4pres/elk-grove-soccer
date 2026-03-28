@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import ProgramCard from '@/components/program-card'
+import ProgramFinder from '@/components/program-finder'
 import { getPrograms } from '@/lib/data'
 import type { ProgramLevel } from '@/lib/programs'
 
@@ -11,21 +12,6 @@ export const metadata: Metadata = {
   description: 'Find the right Elk Grove Soccer program. Future Stars, Recreational, Select, Academy, and Camps & Clinics — ages 4 to 16.',
 }
 
-// Quiz chips — static UI placeholder for the program finder
-const quizSteps = [
-  {
-    question: "How old is your player?",
-    chips: ['4–6', '7–9', '10–12', '13–16'],
-  },
-  {
-    question: "What's their soccer experience?",
-    chips: ['Just starting', 'Played a season or two', 'Experienced player', 'Highly competitive'],
-  },
-  {
-    question: "How much time can you commit?",
-    chips: ['Weekends only', '2–3 days/week', '4+ days + travel', 'Just one week (camp)'],
-  },
-]
 
 interface LevelSection {
   id: ProgramLevel
@@ -140,40 +126,15 @@ export default async function ProgramsPage() {
         </div>
       </section>
 
-      {/* ── Program Finder Teaser ──────────────────────────── */}
+      {/* ── Program Finder ──────────────────────────────────── */}
       <section className="px-4 py-12 bg-pitch/30 border-b border-white/[0.06]" id="finder">
         <div className="max-w-3xl mx-auto">
           <div className="mb-6">
             <p className="text-xs font-semibold uppercase tracking-widest text-cloud/40 mb-2">Program Finder</p>
-            <h2 className="text-2xl font-bold text-cloud">Answer 3 quick questions</h2>
+            <h2 className="text-2xl font-bold text-cloud">Answer 4 quick questions</h2>
             <p className="text-cloud/55 text-sm mt-1">We&apos;ll match your child to the right program.</p>
           </div>
-          <div className="flex flex-col gap-6">
-            {quizSteps.map((step, i) => (
-              <div key={i}>
-                <p className="text-sm font-semibold text-cloud/70 mb-3">
-                  <span className="text-leaf mr-2">{i + 1}.</span>{step.question}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {step.chips.map((chip) => (
-                    <button
-                      key={chip}
-                      className="px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.1] text-sm text-cloud/70 font-medium hover:bg-white/[0.1] hover:text-cloud hover:border-leaf/[0.3] active:scale-[0.97] transition-all"
-                    >
-                      {chip}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="mt-6 text-xs text-cloud/30 text-center">
-            Full interactive program finder coming soon. For now,{' '}
-            <a href="mailto:registrar@elkgrovesoccer.com" className="text-leaf underline underline-offset-2">
-              email us
-            </a>{' '}
-            and we&apos;ll help you find the right fit.
-          </p>
+          <ProgramFinder />
         </div>
       </section>
 
