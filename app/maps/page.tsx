@@ -1,5 +1,9 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { getSchedule } from '@/lib/schedule'
+import ScheduleFilter from '@/components/schedule-filter'
+
+export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   title: 'Maps & Directions',
@@ -42,7 +46,8 @@ const complexes = [
   },
 ]
 
-export default function MapsPage() {
+export default async function MapsPage() {
+  const matches = await getSchedule()
   return (
     <>
       {/* ── Hero ──────────────────────────────────────────────── */}
@@ -80,6 +85,18 @@ export default function MapsPage() {
               className="inline-flex items-center justify-center gap-2 bg-white/[0.08] border border-white/[0.12] text-cloud font-semibold rounded-2xl py-3.5 px-6 text-sm hover:bg-white/[0.12] transition-colors"
             >
               Laguna Park
+            </a>
+            <a
+              href="#schedule"
+              className="inline-flex items-center justify-center gap-2 bg-sunset/[0.1] border border-sunset/[0.2] text-sunset font-semibold rounded-2xl py-3.5 px-6 text-sm hover:bg-sunset/[0.15] transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+                <line x1="16" x2="16" y1="2" y2="6" />
+                <line x1="8" x2="8" y1="2" y2="6" />
+                <line x1="3" x2="21" y1="10" y2="10" />
+              </svg>
+              Schedule
             </a>
             <Link
               href="/field-status"
@@ -176,32 +193,39 @@ export default function MapsPage() {
         </div>
       </section>
 
-      {/* ── Schedule — Coming Soon ────────────────────────────── */}
-      <section className="px-4 py-14 md:py-20 bg-pine/30 border-t border-white/[0.06]">
+      {/* ── Schedule ──────────────────────────────────────────── */}
+      <section id="schedule" className="scroll-mt-24 px-4 py-14 md:py-20 bg-pine/30 border-t border-white/[0.06]">
         <div className="max-w-4xl mx-auto">
           <p className="text-xs font-semibold uppercase tracking-widest text-cloud/40 mb-2">
             Schedule
           </p>
-          <h2 className="text-2xl font-bold text-cloud mb-6">Match Schedule</h2>
-
-          <div className="bg-white/[0.04] border border-sunset/[0.2] rounded-3xl p-8 md:p-12 text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 text-sunset mx-auto mb-4">
-              <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
-              <line x1="16" x2="16" y1="2" y2="6" />
-              <line x1="8" x2="8" y1="2" y2="6" />
-              <line x1="3" x2="21" y1="10" y2="10" />
-            </svg>
-            <p className="text-xl font-bold text-sunset mb-2">Coming Soon</p>
-            <p className="text-sm text-cloud/55 max-w-md mx-auto leading-relaxed mb-6">
-              Match schedules for the 2026 season are being finalized. Check back soon or follow us for updates.
-            </p>
-            <Link
-              href="/field-status"
-              className="inline-flex items-center justify-center gap-2 bg-white/[0.08] border border-white/[0.12] text-cloud font-semibold rounded-2xl py-3 px-6 text-sm hover:bg-white/[0.12] transition-colors"
-            >
-              Check Field Status
-            </Link>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+            <h2 className="text-2xl font-bold text-cloud">Match Schedule</h2>
+            <p className="text-xs text-cloud/30">Updated every 5 minutes from live data</p>
           </div>
+
+          {matches.length > 0 ? (
+            <ScheduleFilter matches={matches} />
+          ) : (
+            <div className="bg-white/[0.04] border border-sunset/[0.2] rounded-3xl p-8 md:p-12 text-center">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 text-sunset mx-auto mb-4">
+                <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+                <line x1="16" x2="16" y1="2" y2="6" />
+                <line x1="8" x2="8" y1="2" y2="6" />
+                <line x1="3" x2="21" y1="10" y2="10" />
+              </svg>
+              <p className="text-xl font-bold text-sunset mb-2">No Matches Scheduled</p>
+              <p className="text-sm text-cloud/55 max-w-md mx-auto leading-relaxed mb-6">
+                No upcoming matches found. Check back soon or follow us for updates.
+              </p>
+              <Link
+                href="/field-status"
+                className="inline-flex items-center justify-center gap-2 bg-white/[0.08] border border-white/[0.12] text-cloud font-semibold rounded-2xl py-3 px-6 text-sm hover:bg-white/[0.12] transition-colors"
+              >
+                Check Field Status
+              </Link>
+            </div>
+          )}
         </div>
       </section>
 
