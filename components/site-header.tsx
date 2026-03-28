@@ -14,7 +14,7 @@ const navLinks = [
 
 function SoccerBall() {
   return (
-    <span className="logo-ball-bounce inline-flex shrink-0">
+    <span className="inline-flex shrink-0">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/soccer-ball.png"
@@ -32,12 +32,12 @@ function EgsLogo() {
     <Link href="/" className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity" aria-label="Elk Grove Soccer — home">
       <SoccerBall />
       <span className="relative overflow-hidden" style={{ height: '1.25rem', width: '11rem' }}>
-        <span className="logo-word-a absolute inset-0 flex items-center font-bold text-base tracking-tight whitespace-nowrap">
+        <span className="logo-word-a absolute inset-0 flex items-center font-bold text-base tracking-tight whitespace-nowrap gap-1">
           <span className="text-cloud">Elk</span>
           <span style={{ color: '#ff8900' }}>Grove</span>
           <span className="text-cloud">Soccer</span>
         </span>
-        <span className="logo-word-b absolute inset-0 flex items-center font-bold text-base tracking-tight whitespace-nowrap" style={{ color: '#ff8900' }}>
+        <span className="logo-word-b absolute inset-0 flex items-center font-bold text-base tracking-tight whitespace-nowrap gap-1" style={{ color: '#ff8900' }}>
           Sacramento Soccer
         </span>
       </span>

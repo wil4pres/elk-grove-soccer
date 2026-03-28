@@ -50,15 +50,9 @@ button, a {
   to   { transform: rotate(360deg); }
 }
 
-@keyframes ballBounce {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-4px); }
-}
-
 .logo-word-a { animation: logoA 7s ease-in-out infinite; }
 .logo-word-b { animation: logoB 7s ease-in-out infinite; }
 .logo-ball-spin   { animation: ballSpin 4s linear infinite; }
-.logo-ball-bounce { animation: ballBounce 1s ease-in-out infinite; }
 
 /* Admin panel utilities */
 .label {
