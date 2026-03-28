@@ -207,7 +207,7 @@ export default function HomePage() {
           <div className="mt-8 text-center">
             <Link
               href="/programs"
-              className="inline-flex items-center gap-2 bg-slate-100 border border-slate-200 text-cloud font-semibold rounded-2xl py-3.5 px-6 text-sm hover:bg-slate-200 transition-colors"
+              className="inline-flex items-center gap-2 bg-white/[0.06] border border-white/[0.1] text-cloud font-semibold rounded-2xl py-3.5 px-6 text-sm hover:bg-white/[0.1] transition-colors"
             >
               Compare all programs &rarr;
             </Link>
@@ -228,37 +228,37 @@ export default function HomePage() {
             {/* Tall feature photo — spans 2 rows on desktop */}
             <div className="relative rounded-2xl overflow-hidden aspect-[3/4] md:aspect-auto md:row-span-2">
               <Image src="/photos/action2.jpg" alt="Elk Grove Soccer player dribbling" fill className="object-cover object-center hover:scale-105 transition-transform duration-700" sizes="(max-width:768px) 50vw, 33vw" />
-              <div className="absolute inset-0 bg-gradient-to-t from-white/40 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-midnight/40 to-transparent" />
             </div>
 
             {/* Top-right two */}
             <div className="relative rounded-2xl overflow-hidden aspect-[4/3] md:aspect-auto">
               <Image src="/photos/action1.jpg" alt="Young players on the ball" fill className="object-cover object-top hover:scale-105 transition-transform duration-700" sizes="(max-width:768px) 50vw, 33vw" />
-              <div className="absolute inset-0 bg-gradient-to-t from-white/30 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-midnight/30 to-transparent" />
             </div>
             <div className="relative rounded-2xl overflow-hidden aspect-[4/3] md:aspect-auto">
               <Image src="/photos/action3.jpg" alt="EGS player kicking" fill className="object-cover object-center hover:scale-105 transition-transform duration-700" sizes="(max-width:768px) 50vw, 33vw" />
-              <div className="absolute inset-0 bg-gradient-to-t from-white/30 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-midnight/30 to-transparent" />
             </div>
 
             {/* Middle-right two */}
             <div className="relative rounded-2xl overflow-hidden aspect-[4/3] md:aspect-auto">
               <Image src="/photos/action4.jpg" alt="Players racing for the ball" fill className="object-cover object-center hover:scale-105 transition-transform duration-700" sizes="(max-width:768px) 50vw, 33vw" />
-              <div className="absolute inset-0 bg-gradient-to-t from-white/30 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-midnight/30 to-transparent" />
             </div>
             <div className="relative rounded-2xl overflow-hidden aspect-[4/3] md:aspect-auto">
               <Image src="/photos/team.jpg" alt="EGS team photo with coach" fill className="object-cover object-center hover:scale-105 transition-transform duration-700" sizes="(max-width:768px) 50vw, 33vw" />
-              <div className="absolute inset-0 bg-gradient-to-t from-white/30 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-midnight/30 to-transparent" />
             </div>
 
             {/* Bottom row — wide shot spans 2 cols */}
             <div className="relative rounded-2xl overflow-hidden aspect-[16/9] col-span-2 md:col-span-2 md:aspect-auto">
               <Image src="/photos/action5.jpg" alt="EGS player breaking away" fill className="object-cover object-[center_40%] hover:scale-105 transition-transform duration-700" sizes="(max-width:768px) 100vw, 66vw" />
-              <div className="absolute inset-0 bg-gradient-to-t from-white/40 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-midnight/40 to-transparent" />
             </div>
             <div className="relative rounded-2xl overflow-hidden aspect-[4/3] md:aspect-auto">
               <Image src="/photos/action6.jpg" alt="Competitive play at EGS" fill className="object-cover object-center hover:scale-105 transition-transform duration-700" sizes="(max-width:768px) 50vw, 33vw" />
-              <div className="absolute inset-0 bg-gradient-to-t from-white/30 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-midnight/30 to-transparent" />
             </div>
           </div>
         </div>
@@ -288,7 +288,7 @@ export default function HomePage() {
           <div className="mt-8">
             <Link
               href="/maps"
-              className="inline-flex items-center gap-2 bg-slate-100 border border-slate-200 text-cloud font-semibold rounded-2xl py-3.5 px-6 text-sm hover:bg-slate-200 transition-colors"
+              className="inline-flex items-center gap-2 bg-white/[0.06] border border-white/[0.1] text-cloud font-semibold rounded-2xl py-3.5 px-6 text-sm hover:bg-white/[0.1] transition-colors"
             >
               Full maps, schedules &amp; parking &rarr;
             </Link>
@@ -322,7 +322,7 @@ export default function HomePage() {
             {mockAlumni.map((alumnus) => (
               <article
                 key={alumnus.id}
-                className="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col gap-5 shadow-sm"
+                className="bg-white/[0.05] border border-white/[0.08] rounded-3xl p-6 flex flex-col gap-5"
               >
                 {/* Header */}
                 <div className="flex items-start justify-between gap-3">
@@ -333,7 +333,7 @@ export default function HomePage() {
                     </p>
                     <p className="text-xs text-cloud/35 mt-0.5">Class of {alumnus.gradYear}</p>
                   </div>
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 border border-slate-200 flex items-center justify-center shrink-0">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-pitch to-midnight border border-white/[0.08] flex items-center justify-center shrink-0">
                     <span className="text-leaf font-bold text-sm">
                       {alumnus.name.split(' ').map((n) => n[0]).join('')}
                     </span>

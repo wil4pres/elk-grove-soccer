@@ -13,29 +13,29 @@ export default function Hero() {
   const sc = statusColors[summary.status]
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-sky-50 to-white">
+    <section className="relative overflow-hidden bg-midnight">
       {/* Background photo */}
       <Image
         src="/photos/hero.jpg"
         alt=""
         fill
-        className="object-cover object-[center_35%] opacity-10"
+        className="object-cover object-[center_35%] opacity-20"
         priority
         sizes="100vw"
       />
       {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-sky-50/90 via-white/70 to-white pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-b from-pine/80 via-midnight/70 to-midnight pointer-events-none" />
       {/* Decorative glow blobs */}
-      <div className="absolute top-0 left-0 w-96 h-96 bg-leaf/[0.06] rounded-full blur-3xl pointer-events-none -translate-x-1/2 -translate-y-1/4" />
+      <div className="absolute top-0 left-0 w-96 h-96 bg-leaf/[0.07] rounded-full blur-3xl pointer-events-none -translate-x-1/2 -translate-y-1/4" />
       <div className="absolute bottom-0 right-0 w-80 h-80 bg-aqua/[0.05] rounded-full blur-3xl pointer-events-none translate-x-1/4 translate-y-1/4" />
-      <div className="absolute top-1/2 right-1/4 w-64 h-64 bg-turf/[0.05] rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 right-1/4 w-64 h-64 bg-turf/[0.08] rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative max-w-6xl mx-auto px-4 py-16 md:py-28">
         <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-12 items-center">
           {/* Left column — headline + CTAs */}
           <div className="text-center lg:text-left">
             {/* Season badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/[0.05] border border-black/[0.08] text-xs font-semibold text-cloud/60 uppercase tracking-widest mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.1] text-xs font-semibold text-cloud/60 uppercase tracking-widest mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-leaf"></span>
               Spring 2026 Season Now Open
             </div>
@@ -60,13 +60,13 @@ export default function Hero() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-10">
               <Link
                 href="/register"
-                className="bg-gradient-to-r from-leaf to-sunset text-white font-bold rounded-2xl py-4 px-7 text-base hover:opacity-90 active:scale-[0.97] transition-all text-center"
+                className="bg-gradient-to-r from-leaf to-sunset text-midnight font-bold rounded-2xl py-4 px-7 text-base hover:opacity-90 active:scale-[0.97] transition-all text-center"
               >
                 Register for 2026
               </Link>
               <Link
                 href="/programs"
-                className="bg-black/[0.05] border border-black/[0.1] text-cloud font-semibold rounded-2xl py-4 px-7 text-base hover:bg-black/[0.08] active:scale-[0.97] transition-all text-center"
+                className="bg-white/[0.08] border border-white/[0.12] text-cloud font-semibold rounded-2xl py-4 px-7 text-base hover:bg-white/[0.12] active:scale-[0.97] transition-all text-center"
               >
                 Find My Program
               </Link>
@@ -87,7 +87,7 @@ export default function Hero() {
           {/* Right column — status + next game cards (desktop only) */}
           <div className="hidden lg:flex flex-col gap-4">
             {/* Field status card */}
-            <div className={`rounded-3xl border ${sc.pill} bg-white/80 p-5 shadow-sm`}>
+            <div className={`rounded-3xl border ${sc.pill} bg-white/[0.04] p-5`}>
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-cloud/40 mb-1">Live Field Status</p>
@@ -108,13 +108,13 @@ export default function Hero() {
             </div>
 
             {/* Next game card */}
-            <div className="rounded-3xl border border-slate-200 bg-white shadow-sm p-5">
+            <div className="rounded-3xl border border-white/[0.08] bg-white/[0.05] p-5">
               <div className="flex items-start justify-between gap-3 mb-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-cloud/40 mb-1">Next Kickoff</p>
                   <p className="text-lg font-bold text-cloud">Today, 8:45 AM</p>
                 </div>
-                <span className="px-2.5 py-1 rounded-full bg-leaf/[0.12] text-leaf text-xs font-bold border border-leaf/[0.2]">
+                <span className="px-2.5 py-1 rounded-full bg-leaf/[0.15] text-leaf text-xs font-bold border border-leaf/[0.2]">
                   LIVE SOON
                 </span>
               </div>
@@ -129,7 +129,7 @@ export default function Hero() {
                   <p className="text-cloud/40 text-xs mt-0.5">Roseville</p>
                 </div>
               </div>
-              <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-cloud/40">
+              <div className="mt-4 pt-4 border-t border-white/[0.06] flex items-center justify-between text-xs text-cloud/40">
                 <span>Cherry Island — Field 4</span>
                 <Link href="/maps" className="text-aqua hover:text-neon font-semibold transition-colors">
                   Directions &rarr;
@@ -138,7 +138,7 @@ export default function Hero() {
             </div>
 
             {/* Quick register teaser */}
-            <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-sky-50 to-blue-50 shadow-sm p-5">
+            <div className="rounded-3xl border border-white/[0.08] bg-gradient-to-br from-pine to-midnight p-5">
               <p className="text-xs font-semibold uppercase tracking-widest text-cloud/40 mb-2">Registration Open</p>
               <p className="text-sm text-cloud/70 mb-3 leading-relaxed">
                 4 programs accepting players now. Spots fill fast.
@@ -146,14 +146,14 @@ export default function Hero() {
               <div className="flex items-center justify-between">
                 <div className="flex -space-x-2">
                   {['bg-leaf', 'bg-aqua', 'bg-sunset', 'bg-rose'].map((c, i) => (
-                    <div key={i} className={`w-7 h-7 rounded-full ${c} border-2 border-sky-100 flex items-center justify-center`}>
-                      <span className="text-white text-xs font-bold">{['F', 'R', 'S', 'A'][i]}</span>
+                    <div key={i} className={`w-7 h-7 rounded-full ${c} border-2 border-pine flex items-center justify-center`}>
+                      <span className="text-midnight text-xs font-bold">{['F', 'R', 'S', 'A'][i]}</span>
                     </div>
                   ))}
                 </div>
                 <Link
                   href="/register"
-                  className="text-xs font-bold text-white bg-gradient-to-r from-leaf to-sunset rounded-xl py-2 px-4 hover:opacity-90 transition-opacity"
+                  className="text-xs font-bold text-midnight bg-gradient-to-r from-leaf to-sunset rounded-xl py-2 px-4 hover:opacity-90 transition-opacity"
                 >
                   View open spots
                 </Link>

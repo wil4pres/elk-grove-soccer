@@ -7,9 +7,9 @@ const stats = [
 
 export default function TrustStrip() {
   return (
-    <section className="bg-slate-50 border-y border-slate-200">
+    <section className="bg-pitch/30 border-y border-white/[0.06]">
       <div className="max-w-6xl mx-auto px-4 py-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-slate-200">
+        <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-white/[0.06]">
           {stats.map((stat) => (
             <div key={stat.label} className="px-4 md:px-8 py-2 first:pl-0 last:pr-0 text-center md:text-left">
               <p className="text-2xl md:text-3xl font-bold text-cloud leading-none mb-1">{stat.value}</p>

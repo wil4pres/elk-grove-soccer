@@ -25,7 +25,7 @@ export default function FieldStatusBanner() {
   const colors = colorMap[summary.status]
 
   return (
-    <div className="bg-slate-50 border-b border-slate-200">
+    <div className="bg-pitch/50 border-b border-white/[0.06]">
       <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3 flex-wrap">
         {/* Status pill */}
         <span

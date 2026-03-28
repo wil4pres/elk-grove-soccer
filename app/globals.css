@@ -3,24 +3,24 @@
 @theme {
   --font-sans: var(--font-space-grotesk), 'Space Grotesk', system-ui, -apple-system, sans-serif;
 
-  --color-midnight: #ffffff;
-  --color-pine:     #f0f5ff;
+  --color-midnight: #080d1a;
+  --color-pine:     #071428;
   --color-turf:     #005ecc;
-  --color-leaf:     #0070e0;
+  --color-leaf:     #0080ff;
   --color-sunset:   #ff8900;
   --color-amber:    #e07800;
-  --color-aqua:     #0077cc;
-  --color-neon:     #004db3;
-  --color-rose:     #e0001a;
-  --color-navy:     #e8f0ff;
-  --color-ink:      #d8e4f5;
-  --color-cloud:    #0f1c36;
-  --color-pitch:    #e4edf8;
+  --color-aqua:     #4db3ff;
+  --color-neon:     #80caff;
+  --color-rose:     #ff3333;
+  --color-navy:     #071b45;
+  --color-ink:      #0d1c3a;
+  --color-cloud:    #f9fbff;
+  --color-pitch:    #111a2e;
 }
 
 ::selection {
-  background-color: rgb(0 112 224 / 0.2);
-  color: #0f1c36;
+  background-color: rgb(0 128 255 / 0.3);
+  color: #f9fbff;
 }
 
 button, a {

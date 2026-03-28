@@ -49,7 +49,7 @@ export default function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false)
 
   return (
-    <header className="sticky top-0 z-50 backdrop-blur-md bg-white/95 border-b border-slate-200">
+    <header className="sticky top-0 z-50 backdrop-blur-md bg-midnight/90 border-b border-white/[0.08]">
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Left side: Logo + hamburger (mobile) */}
@@ -57,7 +57,7 @@ export default function SiteHeader() {
             <EgsLogo />
             <button
               onClick={() => setMenuOpen((v) => !v)}
-              className="lg:hidden flex flex-col justify-center items-center w-10 h-10 gap-1.5 rounded-xl hover:bg-black/[0.05] transition-colors"
+              className="lg:hidden flex flex-col justify-center items-center w-10 h-10 gap-1.5 rounded-xl hover:bg-white/[0.06] transition-colors"
               aria-label={menuOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={menuOpen}
             >
@@ -79,7 +79,7 @@ export default function SiteHeader() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-cloud/70 hover:text-cloud hover:bg-black/[0.05] transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-cloud/70 hover:text-cloud hover:bg-white/[0.06] transition-colors"
               >
                 {link.hasDot && (
                   <span className="w-2 h-2 rounded-full bg-leaf inline-block shrink-0" aria-label="Live status" />
@@ -92,7 +92,7 @@ export default function SiteHeader() {
           {/* Right side: Register CTA */}
           <Link
             href="/register"
-            className="hidden lg:block bg-gradient-to-r from-leaf to-sunset text-white font-bold text-sm rounded-2xl py-2.5 px-5 hover:opacity-90 transition-opacity"
+            className="hidden lg:block bg-gradient-to-r from-leaf to-sunset text-midnight font-bold text-sm rounded-2xl py-2.5 px-5 hover:opacity-90 transition-opacity"
           >
             Register 2026
           </Link>
@@ -101,14 +101,14 @@ export default function SiteHeader() {
 
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="lg:hidden border-t border-slate-200 bg-white/98 backdrop-blur-md">
+        <div className="lg:hidden border-t border-white/[0.08] bg-midnight/95 backdrop-blur-md">
           <nav className="max-w-6xl mx-auto px-4 py-4 flex flex-col gap-1">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2 px-4 py-3.5 rounded-2xl text-base font-medium text-cloud/80 hover:text-cloud hover:bg-black/[0.05] transition-colors"
+                className="flex items-center gap-2 px-4 py-3.5 rounded-2xl text-base font-medium text-cloud/80 hover:text-cloud hover:bg-white/[0.06] transition-colors"
               >
                 {link.hasDot && (
                   <span className="w-2 h-2 rounded-full bg-leaf shrink-0" aria-label="Live status" />
@@ -120,7 +120,7 @@ export default function SiteHeader() {
               <Link
                 href="/register"
                 onClick={() => setMenuOpen(false)}
-                className="block text-center bg-gradient-to-r from-leaf to-sunset text-white font-bold text-base rounded-2xl py-4 px-6 hover:opacity-90 transition-opacity"
+                className="block text-center bg-gradient-to-r from-leaf to-sunset text-midnight font-bold text-base rounded-2xl py-4 px-6 hover:opacity-90 transition-opacity"
               >
                 Register for 2026
               </Link>

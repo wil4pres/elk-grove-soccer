@@ -13,7 +13,7 @@ interface GameDayCardProps {
 
 export default function GameDayCard({ title, icon, items, accentColor = 'text-leaf' }: GameDayCardProps) {
   return (
-    <div className="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col gap-5 shadow-sm">
+    <div className="bg-white/[0.05] border border-white/[0.08] rounded-3xl p-6 flex flex-col gap-5">
       {/* Card header */}
       <div className="flex items-center gap-3">
         <div className={`${accentColor}`}>{icon}</div>

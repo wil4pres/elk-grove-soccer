@@ -26,7 +26,7 @@ const footerLinks = {
 
 export default function SiteFooter() {
   return (
-    <footer className="bg-slate-50 border-t border-slate-200">
+    <footer className="bg-pine border-t border-white/[0.08]">
       <div className="max-w-6xl mx-auto px-4">
         {/* Main footer grid */}
         <div className="py-12 grid grid-cols-1 md:grid-cols-4 gap-10">
@@ -34,7 +34,7 @@ export default function SiteFooter() {
           <div className="md:col-span-1">
             <Link href="/" className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-leaf to-turf flex items-center justify-center shrink-0">
-                <span className="text-white font-bold text-sm leading-none">EG</span>
+                <span className="text-midnight font-bold text-sm leading-none">EG</span>
               </div>
               <span className="font-bold text-cloud text-base leading-tight">
                 Elk Grove Soccer
@@ -71,7 +71,7 @@ export default function SiteFooter() {
         </div>
 
         {/* Bottom bar */}
-        <div className="py-5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="py-5 border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-xs text-cloud/30 text-center sm:text-left">
             &copy; 2026 Elk Grove Soccer. All rights reserved.
           </p>
