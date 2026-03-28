@@ -94,10 +94,10 @@ export function filterCurrentAndFuture(matches: Match[]): Match[] {
   })
 }
 
-export async function getSchedule(): Promise<Match[]> {
+export async function getSchedule(): Promise<Match[] | null> {
   try {
     const res = await fetch(CSV_URL, { next: { revalidate: 60 } }) // cache 1 min
-    if (!res.ok) return []
+    if (!res.ok) return null
     const text = await res.text()
     const rows = parseCSV(text)
 
@@ -136,6 +136,6 @@ export async function getSchedule(): Promise<Match[]> {
 
     return matches
   } catch {
-    return []
+    return null
   }
 }

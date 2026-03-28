@@ -204,9 +204,7 @@ export default async function MapsPage() {
             <p className="text-xs text-cloud/30">Updated every minute from live data</p>
           </div>
 
-          {matches.length > 0 ? (
-            <ScheduleFilter matches={matches} />
-          ) : (
+          {matches === null ? (
             <div className="bg-white/[0.04] border border-sunset/[0.2] rounded-3xl p-8 md:p-12 text-center">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 text-sunset mx-auto mb-4">
                 <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
@@ -214,9 +212,9 @@ export default async function MapsPage() {
                 <line x1="8" x2="8" y1="2" y2="6" />
                 <line x1="3" x2="21" y1="10" y2="10" />
               </svg>
-              <p className="text-xl font-bold text-sunset mb-2">No Matches Scheduled</p>
+              <p className="text-xl font-bold text-sunset mb-2">Pending Schedule Soon</p>
               <p className="text-sm text-cloud/55 max-w-md mx-auto leading-relaxed mb-6">
-                No upcoming matches found. Check back soon or follow us for updates.
+                Match schedule is being updated. Check back shortly.
               </p>
               <Link
                 href="/field-status"
@@ -224,6 +222,21 @@ export default async function MapsPage() {
               >
                 Check Field Status
               </Link>
+            </div>
+          ) : matches.length > 0 ? (
+            <ScheduleFilter matches={matches} />
+          ) : (
+            <div className="bg-white/[0.04] border border-white/[0.08] rounded-3xl p-8 md:p-12 text-center">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 text-cloud/20 mx-auto mb-4">
+                <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+                <line x1="16" x2="16" y1="2" y2="6" />
+                <line x1="8" x2="8" y1="2" y2="6" />
+                <line x1="3" x2="21" y1="10" y2="10" />
+              </svg>
+              <p className="text-xl font-bold text-cloud/50 mb-2">No Matches Scheduled</p>
+              <p className="text-sm text-cloud/40 max-w-md mx-auto leading-relaxed">
+                No upcoming matches found. Check back soon or follow us for updates.
+              </p>
             </div>
           )}
         </div>

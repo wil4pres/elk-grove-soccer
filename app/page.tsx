@@ -152,20 +152,26 @@ export default async function HomePage() {
   const openPrograms = allPrograms.filter((p) => p.registrationStatus === 'open').slice(0, 3)
 
   // Build live schedule card — only current/future matches
-  const upcoming = filterCurrentAndFuture(matches)
+  const upcoming = matches ? filterCurrentAndFuture(matches) : []
   const arrowIcon = <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
-  const scheduleItems = upcoming.length > 0
+  const chatIcon = <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+  const scheduleItems = matches === null
+    ? [
+        { icon: arrowIcon, label: 'Schedule', value: 'Pending Schedule Soon' },
+        { icon: chatIcon, label: 'Info', value: 'Match schedule is being updated. Check back shortly.' },
+      ]
+    : upcoming.length > 0
     ? [
         ...(upcoming.slice(0, 2).map((m, i) => ({
           icon: arrowIcon,
           label: i === 0 ? 'Next game' : 'Following',
           value: `${formatMatchDate(m.date)} ${m.time} · ${m.homeTeam} vs ${m.awayTeam || m.awayClub} · ${m.location}`,
         }))),
-        { icon: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>, label: 'Full schedule', value: `${upcoming.length} upcoming matches → Maps & Schedules` },
+        { icon: chatIcon, label: 'Full schedule', value: `${upcoming.length} upcoming matches → Maps & Schedules` },
       ]
     : [
         { icon: arrowIcon, label: 'Schedule', value: 'No upcoming matches scheduled' },
-        { icon: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>, label: 'Full schedule', value: 'Check Maps & Schedules for updates' },
+        { icon: chatIcon, label: 'Full schedule', value: 'Check Maps & Schedules for updates' },
       ]
 
   const allGameDayCards = gameDayCards.map(c =>
