@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-space-grotesk), 'Space Grotesk', system-ui, -apple-system, sans-serif;
+
+  --color-midnight: #ffffff;
+  --color-pine:     #f0f5ff;
+  --color-turf:     #005ecc;
+  --color-leaf:     #0070e0;
+  --color-sunset:   #ff8900;
+  --color-amber:    #e07800;
+  --color-aqua:     #0077cc;
+  --color-neon:     #004db3;
+  --color-rose:     #e0001a;
+  --color-navy:     #e8f0ff;
+  --color-ink:      #d8e4f5;
+  --color-cloud:    #0f1c36;
+  --color-pitch:    #e4edf8;
+}
+
+::selection {
+  background-color: rgb(0 112 224 / 0.2);
+  color: #0f1c36;
+}
+
+button, a {
+  touch-action: manipulation;
+}
+
+@keyframes logoA {
+  0%   { opacity: 1; transform: translateY(0); }
+  40%  { opacity: 1; transform: translateY(0); }
+  48%  { opacity: 0; transform: translateY(-10px); }
+  49%  { opacity: 0; transform: translateY(10px); }
+  91%  { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes logoB {
+  0%   { opacity: 0; transform: translateY(10px); }
+  49%  { opacity: 0; transform: translateY(10px); }
+  57%  { opacity: 1; transform: translateY(0); }
+  91%  { opacity: 1; transform: translateY(0); }
+  99%  { opacity: 0; transform: translateY(-10px); }
+  100% { opacity: 0; transform: translateY(10px); }
+}
+
+@keyframes ballSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes ballBounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+
+.logo-word-a { animation: logoA 7s ease-in-out infinite; }
+.logo-word-b { animation: logoB 7s ease-in-out infinite; }
+.logo-ball-spin   { animation: ballSpin 4s linear infinite; }
+.logo-ball-bounce { animation: ballBounce 1s ease-in-out infinite; }
