@@ -2,6 +2,7 @@ export interface SessionPayload {
   admin: boolean
   iat?: number
   exp?: number
+  [key: string]: unknown
 }
 
 export interface AuthConfig {
