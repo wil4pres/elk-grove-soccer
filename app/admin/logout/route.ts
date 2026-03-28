@@ -1,8 +1,12 @@
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { AuthService } from '@/lib/auth/service'
 
 export async function GET() {
-  const cookieStore = await cookies()
-  cookieStore.delete('admin_session')
+  try {
+    await AuthService.logout()
+  } catch (error) {
+    console.error('Logout error:', error)
+  }
+
   redirect('/admin/login')
 }
