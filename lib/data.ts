@@ -34,6 +34,17 @@ export async function getAlumni(): Promise<AlumniStory[]> {
   return items.sort((a, b) => b.gradYear - a.gradYear)
 }
 
+export type Staff = {
+  id: string; name: string; role: string; bio: string
+  email?: string; phone?: string; sortOrder?: number
+}
+
+export async function getStaff(): Promise<Staff[]> {
+  const res = await db.send(new ScanCommand({ TableName: 'egs-staff' }))
+  const items = (res.Items ?? []) as Staff[]
+  return items.sort((a, b) => (a.sortOrder ?? 99) - (b.sortOrder ?? 99))
+}
+
 export function computeFieldSummary(fields: Field[]): { status: FieldStatus; message: string; updatedAt: string } {
   const hasClosed = fields.some(f => f.status === 'closed')
   const hasDelay = fields.some(f => f.status === 'delay')
