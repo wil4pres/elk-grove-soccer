@@ -14,7 +14,9 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon.svg',
     shortcut: '/favicon.svg',
+    apple: '/icons/icon-192.png',
   },
+  manifest: '/manifest.json',
   title: {
     default: "Elk Grove Soccer | NorCal Premier Youth Soccer Club",
     template: "%s | Elk Grove Soccer",
@@ -37,6 +39,11 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
   },
+  other: {
+    'mobile-web-app-capable': 'yes',
+    'apple-mobile-web-app-capable': 'yes',
+    'apple-mobile-web-app-status-bar-style': 'black-translucent',
+  },
 };
 
 export default function RootLayout({
@@ -46,10 +53,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${spaceGrotesk.variable} h-full`}>
+      <head>
+        <meta name="theme-color" content="#080d1a" />
+      </head>
       <body className="bg-midnight text-cloud font-sans antialiased min-h-screen flex flex-col">
         <SiteHeader />
         <main className="flex-1">{children}</main>
         <SiteFooter />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js')})}`,
+          }}
+        />
       </body>
     </html>
   );
