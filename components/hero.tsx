@@ -1,7 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { getFields, computeFieldSummary } from '@/lib/data'
-import { getSchedule } from '@/lib/schedule'
+import { getSchedule, filterCurrentAndFuture, matchTimestamp } from '@/lib/schedule'
 
 function formatMatchDate(iso: string): string {
   const today = new Date().toISOString().slice(0, 10)
@@ -16,10 +16,13 @@ export default async function Hero() {
   const [fields, matches] = await Promise.all([getFields(), getSchedule()])
   const summary = computeFieldSummary(fields)
 
-  // Find next upcoming match (today or future)
+  // Find next upcoming match or currently live (within 1hr of kickoff)
   const today = new Date().toISOString().slice(0, 10)
-  const upcoming = matches.filter(m => m.date >= today)
+  const now = Date.now()
+  const ONE_HOUR = 60 * 60 * 1000
+  const upcoming = filterCurrentAndFuture(matches)
   const nextMatch = upcoming[0] ?? null
+  const isLive = nextMatch ? matchTimestamp(nextMatch.date, nextMatch.time) <= now && matchTimestamp(nextMatch.date, nextMatch.time) + ONE_HOUR > now : false
 
   const statusColors = {
     open: { dot: 'bg-leaf', text: 'text-leaf', pill: 'bg-leaf/[0.12] border-leaf/[0.2]', label: 'All Fields Open' },
@@ -131,11 +134,15 @@ export default async function Hero() {
                     <p className="text-xs font-semibold uppercase tracking-widest text-cloud/40 mb-1">Next Kickoff</p>
                     <p className="text-lg font-bold text-cloud">{formatMatchDate(nextMatch.date)}, {nextMatch.time}</p>
                   </div>
-                  {nextMatch.date === today && (
+                  {isLive ? (
+                    <span className="px-2.5 py-1 rounded-full bg-rose/[0.15] text-rose text-xs font-bold border border-rose/[0.2] animate-pulse">
+                      LIVE NOW
+                    </span>
+                  ) : nextMatch.date === today ? (
                     <span className="px-2.5 py-1 rounded-full bg-leaf/[0.15] text-leaf text-xs font-bold border border-leaf/[0.2]">
                       LIVE SOON
                     </span>
-                  )}
+                  ) : null}
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <div className="text-center">

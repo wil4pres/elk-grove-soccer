@@ -68,6 +68,32 @@ function parseCSV(text: string): string[][] {
   return rows
 }
 
+/** Convert match date (YYYY-MM-DD) + time ("8:45 AM") into a Unix ms timestamp */
+export function matchTimestamp(date: string, time: string): number {
+  if (!date || !time) return 0
+  const [y, mo, d] = date.split('-').map(Number)
+  const match = time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+  if (!match) return new Date(y, mo - 1, d).getTime()
+  let hours = parseInt(match[1])
+  const minutes = parseInt(match[2])
+  const ampm = match[3].toUpperCase()
+  if (ampm === 'PM' && hours !== 12) hours += 12
+  if (ampm === 'AM' && hours === 12) hours = 0
+  return new Date(y, mo - 1, d, hours, minutes).getTime()
+}
+
+/** Filter matches to only current (within 1hr of kickoff) or future */
+export function filterCurrentAndFuture(matches: Match[]): Match[] {
+  const now = Date.now()
+  const ONE_HOUR = 60 * 60 * 1000
+  return matches.filter(m => {
+    const kickoff = matchTimestamp(m.date, m.time)
+    if (!kickoff) return m.date >= new Date().toISOString().slice(0, 10)
+    // Show if kickoff is in the future OR game started less than 1 hour ago
+    return kickoff + ONE_HOUR > now
+  })
+}
+
 export async function getSchedule(): Promise<Match[]> {
   try {
     const res = await fetch(CSV_URL, { next: { revalidate: 300 } }) // cache 5 min

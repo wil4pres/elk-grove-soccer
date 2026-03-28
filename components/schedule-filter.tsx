@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import type { Match } from '@/lib/schedule'
 
 function formatDate(iso: string): string {
@@ -54,6 +54,22 @@ export default function ScheduleFilter({ matches }: { matches: Match[] }) {
   }, [filtered])
 
   const activeFilters = [dateFilter, ageFilter, genderFilter, venueFilter].filter(f => f !== 'all').length + (search ? 1 : 0)
+
+  // Auto-scroll to today's section (or nearest future date) on mount
+  const scrolledRef = useRef(false)
+  useEffect(() => {
+    if (scrolledRef.current || grouped.length === 0) return
+    scrolledRef.current = true
+    const today = new Date().toISOString().slice(0, 10)
+    // Find today or the first future date
+    const targetDate = grouped.find(([d]) => d >= today)?.[0]
+    if (!targetDate) return
+    // Small delay so DOM is ready
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`schedule-date-${targetDate}`)
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }, [grouped])
 
   return (
     <div>
@@ -144,7 +160,7 @@ export default function ScheduleFilter({ matches }: { matches: Match[] }) {
       ) : (
         <div className="space-y-8">
           {grouped.map(([date, dayMatches]) => (
-            <div key={date}>
+            <div key={date} id={`schedule-date-${date}`} className="scroll-mt-24">
               <h3 className="text-sm font-semibold text-cloud/50 uppercase tracking-wider mb-3 flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
                   <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />

@@ -8,7 +8,7 @@ import ProgramCard from '@/components/program-card'
 import GameDayCard from '@/components/game-day-card'
 import SponsorStrip from '@/components/sponsor-strip'
 import { getPrograms, getAlumni } from '@/lib/data'
-import { getSchedule } from '@/lib/schedule'
+import { getSchedule, filterCurrentAndFuture } from '@/lib/schedule'
 
 export const dynamic = 'force-dynamic'
 
@@ -151,9 +151,8 @@ export default async function HomePage() {
   const [allPrograms, alumni, matches] = await Promise.all([getPrograms(), getAlumni(), getSchedule()])
   const openPrograms = allPrograms.filter((p) => p.registrationStatus === 'open').slice(0, 3)
 
-  // Build live schedule card
-  const today = new Date().toISOString().slice(0, 10)
-  const upcoming = matches.filter(m => m.date >= today)
+  // Build live schedule card — only current/future matches
+  const upcoming = filterCurrentAndFuture(matches)
   const arrowIcon = <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
   const scheduleItems = upcoming.length > 0
     ? [
