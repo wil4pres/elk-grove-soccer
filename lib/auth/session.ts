@@ -1,8 +1,12 @@
-import { SignJWT, jwtVerify, JWTPayload } from 'jose'
+import { SignJWT, jwtVerify } from 'jose'
 import { authConfig } from './config'
 import { SessionPayload, VerifyResult } from './types'
+import { getSessionSecret } from '@/lib/secrets'
 
-const secret = () => new TextEncoder().encode(authConfig.sessionSecret)
+async function secret() {
+  const key = await getSessionSecret()
+  return new TextEncoder().encode(key || authConfig.sessionSecret)
+}
 
 export async function createSessionToken(): Promise<string> {
   try {
@@ -12,7 +16,7 @@ export async function createSessionToken(): Promise<string> {
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
       .setExpirationTime(authConfig.sessionDuration)
-      .sign(secret())
+      .sign(await secret())
   } catch (error) {
     console.error('Failed to create session token:', error)
     throw new Error('Session creation failed')
@@ -21,7 +25,7 @@ export async function createSessionToken(): Promise<string> {
 
 export async function verifySessionToken(token: string): Promise<VerifyResult> {
   try {
-    const { payload } = await jwtVerify(token, secret())
+    const { payload } = await jwtVerify(token, await secret())
 
     return {
       valid: true,

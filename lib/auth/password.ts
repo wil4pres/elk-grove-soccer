@@ -1,17 +1,19 @@
-import { authConfig } from './config'
 import { AuthResult } from './types'
+import { getAdminPassword } from '@/lib/secrets'
 
 export async function validatePassword(password: string): Promise<AuthResult> {
   if (!password) {
     return { success: false, error: 'Password is required' }
   }
 
-  if (!authConfig.adminPassword) {
-    console.error('ADMIN_PASSWORD environment variable is not set')
+  const adminPassword = await getAdminPassword()
+
+  if (!adminPassword) {
+    console.error('Admin password not configured in SSM or environment')
     return { success: false, error: 'Authentication not configured' }
   }
 
-  if (password !== authConfig.adminPassword) {
+  if (password !== adminPassword) {
     console.warn('Invalid login attempt')
     return { success: false, error: 'Invalid password' }
   }
@@ -19,6 +21,7 @@ export async function validatePassword(password: string): Promise<AuthResult> {
   return { success: true, token: '' }
 }
 
-export function isPasswordConfigured(): boolean {
-  return Boolean(authConfig.adminPassword)
+export async function isPasswordConfigured(): Promise<boolean> {
+  const adminPassword = await getAdminPassword()
+  return Boolean(adminPassword)
 }
