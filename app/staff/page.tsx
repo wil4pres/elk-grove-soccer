@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import Link from 'next/link'
 import { getStaff, type Staff } from '@/lib/data'
 
@@ -11,14 +12,15 @@ export const metadata: Metadata = {
 }
 
 const agcData = [
-  { name: 'Keith Stephen', ageGroup: 'U16', birthYears: '2007/2006' },
-  { name: 'Dave Groves', ageGroup: 'U16 & U19', birthYears: '2003–2007' },
-  { name: 'William Newsom', ageGroup: 'U14', birthYears: '2008/2009' },
-  { name: 'Jason Greer', ageGroup: 'U12', birthYears: '2010' },
-  { name: 'Dan Templeton', ageGroup: 'U11', birthYears: '2011' },
-  { name: 'Babak Amali', ageGroup: 'U10', birthYears: '2012' },
-  { name: 'Patsy Consenza', ageGroup: 'U9', birthYears: '2013' },
-  { name: 'Alex Herman', ageGroup: 'U8', birthYears: '2014' },
+  { name: 'Dave Groves', ageGroup: 'U19 (2007–2009), U16 (2010/2011), U14 (2012) & U13 (2013)', detail: 'Boys & Girls', photo: '/staff/dave-groves.gif', profileUrl: 'https://elkgrovesoccer.com/team/dave-groves-3-2/' },
+  { name: 'David Kincannon', ageGroup: 'U12/U11 (2015/2014)', detail: 'Boys', photo: '/staff/david-kincannon.gif', profileUrl: 'https://elkgrovesoccer.com/team/david-kincannon-4/' },
+  { name: 'Dan Templeton', ageGroup: 'U9 (2017) & U10 (2016)', detail: 'Boys', photo: '/staff/dan-templeton.png', profileUrl: 'https://elkgrovesoccer.com/team/dan-t-3/' },
+  { name: 'Sara Morin', ageGroup: 'U12/U11 (2015/2014)', detail: 'Girls', photo: '/staff/sara-morin.jpg', profileUrl: 'https://elkgrovesoccer.com/team/saramorin12/' },
+  { name: 'William Newsom', ageGroup: 'U10 (2016)', detail: 'Girls', photo: '/staff/william-newsom.png', profileUrl: 'https://elkgrovesoccer.com/team/william-newsom-5/' },
+  { name: 'Marissa Zamarripa', ageGroup: 'U9 (2017)', detail: 'Girls', photo: '/staff/marissa-zamarripa.gif', profileUrl: 'https://elkgrovesoccer.com/team/marissapzamarripa12/' },
+  { name: 'Olivia Mattos', ageGroup: 'U8 (2018) & U7 (2019)', detail: 'Boys & Girls', photo: '/staff/olivia-mattos.jpg', profileUrl: 'https://elkgrovesoccer.com/team/oliviamattos-3-2/' },
+  { name: 'Greig Paterson', ageGroup: 'U6 (2020) & U5 (2021)', detail: 'Boys & Girls', photo: '/staff/greig-paterson.jpg', profileUrl: 'https://elkgrovesoccer.com/team/greig-paterson/' },
+  { name: 'Doug Mattos', ageGroup: 'Rancho Murieta', detail: 'All Age Groups', photo: '/staff/doug-mattos.png', profileUrl: 'https://elkgrovesoccer.com/team/doug-mattos-3/' },
 ]
 
 function StaffCard({ member }: { member: Staff }) {
@@ -153,23 +155,33 @@ export default async function StaffPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {agcData.map((agc) => (
-              <div
+              <a
                 key={agc.name}
-                className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-5 flex flex-col gap-3"
+                href={agc.profileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white/[0.04] border border-white/[0.08] rounded-3xl p-5 flex items-start gap-4 hover:bg-white/[0.07] hover:border-white/[0.15] transition-all group"
               >
-                <div className="w-12 h-12 rounded-full bg-sunset/[0.15] border border-sunset/[0.2] flex items-center justify-center">
-                  <span className="text-sm font-bold text-sunset">
-                    {agc.name.split(' ').map((w) => w[0]).join('').slice(0, 2)}
-                  </span>
+                <div className="w-16 h-16 rounded-full overflow-hidden shrink-0 border-2 border-sunset/[0.3]">
+                  <Image
+                    src={agc.photo}
+                    alt={agc.name}
+                    width={64}
+                    height={64}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-                <div>
-                  <h3 className="text-base font-bold text-cloud">{agc.name}</h3>
-                  <p className="text-sm text-sunset font-semibold">{agc.ageGroup}</p>
-                  <p className="text-xs text-cloud/40 mt-0.5">Birth years: {agc.birthYears}</p>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-bold text-cloud group-hover:text-sunset transition-colors">{agc.name}</h3>
+                  <p className="text-sm text-sunset font-semibold mt-0.5">{agc.ageGroup}</p>
+                  <p className="text-xs text-cloud/40 mt-0.5">{agc.detail}</p>
                 </div>
-              </div>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-cloud/20 group-hover:text-sunset shrink-0 mt-1 transition-colors">
+                  <path d="M7 17l9.2-9.2M17 17V7H7" />
+                </svg>
+              </a>
             ))}
           </div>
 
