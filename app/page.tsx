@@ -8,6 +8,7 @@ import ProgramCard from '@/components/program-card'
 import GameDayCard from '@/components/game-day-card'
 import SponsorStrip from '@/components/sponsor-strip'
 import { getPrograms, getAlumni } from '@/lib/data'
+import { getSchedule } from '@/lib/schedule'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,11 +40,8 @@ const gameDayCards = [
         <line x1="3" x2="21" y1="10" y2="10" />
       </svg>
     ),
-    items: [
-      { icon: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>, label: 'Next game', value: 'Today 8:45 AM · 10U Green vs Storm FC · Field 4' },
-      { icon: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>, label: 'Following', value: 'Today 9:30 AM · Academy Navy vs Folsom · Field 2' },
-      { icon: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>, label: 'Full schedule', value: 'Full schedule at Maps & Schedules →' },
-    ],
+    items: [] as { icon: React.ReactNode; label: string; value: string }[],
+    _isSchedule: true as const,
   },
   {
     title: 'What to Bring',
@@ -140,9 +138,40 @@ const levelSummaries = [
   },
 ]
 
+function formatMatchDate(iso: string): string {
+  const today = new Date().toISOString().slice(0, 10)
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
+  if (iso === today) return 'Today'
+  if (iso === tomorrow) return 'Tomorrow'
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
 export default async function HomePage() {
-  const [allPrograms, alumni] = await Promise.all([getPrograms(), getAlumni()])
+  const [allPrograms, alumni, matches] = await Promise.all([getPrograms(), getAlumni(), getSchedule()])
   const openPrograms = allPrograms.filter((p) => p.registrationStatus === 'open').slice(0, 3)
+
+  // Build live schedule card
+  const today = new Date().toISOString().slice(0, 10)
+  const upcoming = matches.filter(m => m.date >= today)
+  const arrowIcon = <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+  const scheduleItems = upcoming.length > 0
+    ? [
+        ...(upcoming.slice(0, 2).map((m, i) => ({
+          icon: arrowIcon,
+          label: i === 0 ? 'Next game' : 'Following',
+          value: `${formatMatchDate(m.date)} ${m.time} · ${m.homeTeam} vs ${m.awayTeam || m.awayClub} · ${m.location}`,
+        }))),
+        { icon: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>, label: 'Full schedule', value: `${upcoming.length} upcoming matches → Maps & Schedules` },
+      ]
+    : [
+        { icon: arrowIcon, label: 'Schedule', value: 'No upcoming matches scheduled' },
+        { icon: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>, label: 'Full schedule', value: 'Check Maps & Schedules for updates' },
+      ]
+
+  const allGameDayCards = gameDayCards.map(c =>
+    '_isSchedule' in c ? { ...c, items: scheduleItems } : c
+  )
   return (
     <>
       <FieldStatusBanner />
@@ -276,7 +305,7 @@ export default async function HomePage() {
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {gameDayCards.map((card) => (
+            {allGameDayCards.map((card) => (
               <GameDayCard
                 key={card.title}
                 title={card.title}

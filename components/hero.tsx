@@ -1,10 +1,25 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { getFields, computeFieldSummary } from '@/lib/data'
+import { getSchedule } from '@/lib/schedule'
+
+function formatMatchDate(iso: string): string {
+  const today = new Date().toISOString().slice(0, 10)
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
+  if (iso === today) return 'Today'
+  if (iso === tomorrow) return 'Tomorrow'
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+}
 
 export default async function Hero() {
-  const fields = await getFields()
+  const [fields, matches] = await Promise.all([getFields(), getSchedule()])
   const summary = computeFieldSummary(fields)
+
+  // Find next upcoming match (today or future)
+  const today = new Date().toISOString().slice(0, 10)
+  const upcoming = matches.filter(m => m.date >= today)
+  const nextMatch = upcoming[0] ?? null
 
   const statusColors = {
     open: { dot: 'bg-leaf', text: 'text-leaf', pill: 'bg-leaf/[0.12] border-leaf/[0.2]', label: 'All Fields Open' },
@@ -109,34 +124,46 @@ export default async function Hero() {
             </div>
 
             {/* Next game card */}
-            <div className="rounded-3xl border border-white/[0.08] bg-white/[0.05] p-5">
-              <div className="flex items-start justify-between gap-3 mb-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-cloud/40 mb-1">Next Kickoff</p>
-                  <p className="text-lg font-bold text-cloud">Today, 8:45 AM</p>
+            {nextMatch ? (
+              <div className="rounded-3xl border border-white/[0.08] bg-white/[0.05] p-5">
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-cloud/40 mb-1">Next Kickoff</p>
+                    <p className="text-lg font-bold text-cloud">{formatMatchDate(nextMatch.date)}, {nextMatch.time}</p>
+                  </div>
+                  {nextMatch.date === today && (
+                    <span className="px-2.5 py-1 rounded-full bg-leaf/[0.15] text-leaf text-xs font-bold border border-leaf/[0.2]">
+                      LIVE SOON
+                    </span>
+                  )}
                 </div>
-                <span className="px-2.5 py-1 rounded-full bg-leaf/[0.15] text-leaf text-xs font-bold border border-leaf/[0.2]">
-                  LIVE SOON
-                </span>
+                <div className="flex items-center justify-between text-sm">
+                  <div className="text-center">
+                    <p className="font-bold text-cloud text-base">{nextMatch.homeTeam}</p>
+                    <p className="text-cloud/40 text-xs mt-0.5">Elk Grove</p>
+                  </div>
+                  <div className="text-cloud/30 font-bold text-xl">vs</div>
+                  <div className="text-center">
+                    <p className="font-bold text-cloud text-base">{nextMatch.awayTeam || nextMatch.awayClub}</p>
+                    <p className="text-cloud/40 text-xs mt-0.5">{nextMatch.awayClub}</p>
+                  </div>
+                </div>
+                <div className="mt-4 pt-4 border-t border-white/[0.06] flex items-center justify-between text-xs text-cloud/40">
+                  <span>{nextMatch.location}</span>
+                  <Link href="/maps#schedule" className="text-aqua hover:text-neon font-semibold transition-colors">
+                    Full schedule &rarr;
+                  </Link>
+                </div>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <div className="text-center">
-                  <p className="font-bold text-cloud text-base">10U Green</p>
-                  <p className="text-cloud/40 text-xs mt-0.5">Elk Grove</p>
-                </div>
-                <div className="text-cloud/30 font-bold text-xl">vs</div>
-                <div className="text-center">
-                  <p className="font-bold text-cloud text-base">Storm FC</p>
-                  <p className="text-cloud/40 text-xs mt-0.5">Roseville</p>
-                </div>
-              </div>
-              <div className="mt-4 pt-4 border-t border-white/[0.06] flex items-center justify-between text-xs text-cloud/40">
-                <span>Cherry Island — Field 4</span>
-                <Link href="/maps" className="text-aqua hover:text-neon font-semibold transition-colors">
-                  Directions &rarr;
+            ) : (
+              <div className="rounded-3xl border border-white/[0.08] bg-white/[0.05] p-5">
+                <p className="text-xs font-semibold uppercase tracking-widest text-cloud/40 mb-1">Next Kickoff</p>
+                <p className="text-sm text-cloud/50">No upcoming matches scheduled.</p>
+                <Link href="/maps#schedule" className="text-xs text-aqua hover:text-neon font-semibold transition-colors mt-2 inline-block">
+                  View schedule &rarr;
                 </Link>
               </div>
-            </div>
+            )}
 
             {/* Quick register teaser */}
             <div className="rounded-3xl border border-white/[0.08] bg-gradient-to-br from-pine to-midnight p-5">
