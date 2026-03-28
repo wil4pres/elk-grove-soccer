@@ -201,7 +201,7 @@ export default async function MapsPage() {
           </p>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
             <h2 className="text-2xl font-bold text-cloud">Match Schedule</h2>
-            <p className="text-xs text-cloud/30">Updated every 5 minutes from live data</p>
+            <p className="text-xs text-cloud/30">Updated every minute from live data</p>
           </div>
 
           {matches.length > 0 ? (

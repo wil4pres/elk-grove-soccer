@@ -96,7 +96,7 @@ export function filterCurrentAndFuture(matches: Match[]): Match[] {
 
 export async function getSchedule(): Promise<Match[]> {
   try {
-    const res = await fetch(CSV_URL, { next: { revalidate: 300 } }) // cache 5 min
+    const res = await fetch(CSV_URL, { next: { revalidate: 60 } }) // cache 1 min
     if (!res.ok) return []
     const text = await res.text()
     const rows = parseCSV(text)
