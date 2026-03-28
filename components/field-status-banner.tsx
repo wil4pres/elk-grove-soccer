@@ -1,8 +1,9 @@
 import Link from 'next/link'
-import { getFieldStatusSummary } from '@/lib/fieldStatus'
+import { getFields, computeFieldSummary } from '@/lib/data'
 
-export default function FieldStatusBanner() {
-  const summary = getFieldStatusSummary()
+export default async function FieldStatusBanner() {
+  const fields = await getFields()
+  const summary = computeFieldSummary(fields)
 
   const colorMap = {
     open: {
@@ -27,25 +28,15 @@ export default function FieldStatusBanner() {
   return (
     <div className="bg-pitch/50 border-b border-white/[0.06]">
       <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3 flex-wrap">
-        {/* Status pill */}
-        <span
-          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border tracking-wide ${colors.pill}`}
-        >
+        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border tracking-wide ${colors.pill}`}>
           <span className={`w-1.5 h-1.5 rounded-full ${colors.dot} animate-pulse`} />
           {colors.label}
         </span>
-
-        {/* Message */}
         <span className="text-sm text-cloud/70 flex-1 min-w-0">
           {summary.message}
           <span className="text-cloud/40 ml-1.5 text-xs">· Updated {summary.updatedAt}</span>
         </span>
-
-        {/* Details link */}
-        <Link
-          href="/field-status"
-          className="text-sm font-semibold text-leaf hover:text-neon transition-colors shrink-0 whitespace-nowrap"
-        >
+        <Link href="/field-status" className="text-sm font-semibold text-leaf hover:text-neon transition-colors shrink-0 whitespace-nowrap">
           Details &rarr;
         </Link>
       </div>

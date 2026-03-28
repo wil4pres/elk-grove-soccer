@@ -7,8 +7,9 @@ import MobileQuickActions from '@/components/mobile-quick-actions'
 import ProgramCard from '@/components/program-card'
 import GameDayCard from '@/components/game-day-card'
 import SponsorStrip from '@/components/sponsor-strip'
-import { mockPrograms } from '@/lib/programs'
-import { mockAlumni } from '@/lib/alumni'
+import { getPrograms, getAlumni } from '@/lib/data'
+
+export const dynamic = 'force-dynamic'
 
 // Game day utility card content
 const gameDayCards = [
@@ -79,9 +80,7 @@ const gameDayCards = [
   },
 ]
 
-const openPrograms = mockPrograms
-  .filter((p) => p.registrationStatus === 'open')
-  .slice(0, 3)
+// data fetched inside component below
 
 const levelSummaries = [
   {
@@ -141,7 +140,9 @@ const levelSummaries = [
   },
 ]
 
-export default function HomePage() {
+export default async function HomePage() {
+  const [allPrograms, alumni] = await Promise.all([getPrograms(), getAlumni()])
+  const openPrograms = allPrograms.filter((p) => p.registrationStatus === 'open').slice(0, 3)
   return (
     <>
       <FieldStatusBanner />
@@ -319,7 +320,7 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {mockAlumni.map((alumnus) => (
+            {alumni.map((alumnus) => (
               <article
                 key={alumnus.id}
                 className="bg-white/[0.05] border border-white/[0.08] rounded-3xl p-6 flex flex-col gap-5"

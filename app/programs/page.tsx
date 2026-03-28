@@ -1,8 +1,10 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import ProgramCard from '@/components/program-card'
-import { mockPrograms } from '@/lib/programs'
+import { getPrograms } from '@/lib/data'
 import type { ProgramLevel } from '@/lib/programs'
+
+export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   title: 'Programs',
@@ -115,7 +117,8 @@ const commitmentGuide = [
   { level: 'Camps', days: 'Varies', travel: 'None', tryout: 'No', price: 'From $95' },
 ]
 
-export default function ProgramsPage() {
+export default async function ProgramsPage() {
+  const allPrograms = await getPrograms()
   return (
     <>
       {/* ── Page Hero ──────────────────────────────────────── */}
@@ -210,7 +213,7 @@ export default function ProgramsPage() {
 
       {/* ── Program Sections ──────────────────────────────── */}
       {levelSections.map((section) => {
-        const programs = mockPrograms.filter((p) => p.level === section.id)
+        const programs = allPrograms.filter((p) => p.level === section.id)
         return (
           <section
             key={section.id}

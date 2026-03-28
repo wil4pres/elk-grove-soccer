@@ -1,9 +1,10 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { getFieldStatusSummary } from '@/lib/fieldStatus'
+import { getFields, computeFieldSummary } from '@/lib/data'
 
-export default function Hero() {
-  const summary = getFieldStatusSummary()
+export default async function Hero() {
+  const fields = await getFields()
+  const summary = computeFieldSummary(fields)
 
   const statusColors = {
     open: { dot: 'bg-leaf', text: 'text-leaf', pill: 'bg-leaf/[0.12] border-leaf/[0.2]', label: 'All Fields Open' },

@@ -1,9 +1,10 @@
 import Link from 'next/link'
-import { mockSponsors } from '@/lib/sponsors'
+import { getSponsors } from '@/lib/data'
 
-export default function SponsorStrip() {
-  const premier = mockSponsors.filter(s => s.tier === 'premier')
-  const community = mockSponsors.filter(s => s.tier === 'community')
+export default async function SponsorStrip() {
+  const sponsors = await getSponsors()
+  const premier = sponsors.filter(s => s.tier === 'premier')
+  const community = sponsors.filter(s => s.tier === 'community')
 
   return (
     <section className="bg-pine/60 border-y border-white/[0.06] px-4 py-16 md:py-20">
@@ -42,22 +43,24 @@ export default function SponsorStrip() {
           </div>
         ))}
 
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-cloud/30 mb-5">Community Sponsors</p>
-          <div className="flex flex-wrap gap-3">
-            {community.map(sponsor => (
-              <Link key={sponsor.id} href={sponsor.ctaHref} className="flex items-center gap-3 bg-white/[0.05] border border-white/[0.08] rounded-2xl py-3 px-4 hover:bg-white/[0.08] active:scale-[0.97] transition-all">
-                <div className="w-9 h-9 rounded-xl bg-pitch flex items-center justify-center shrink-0">
-                  <span className="text-cloud/70 font-bold text-xs">{sponsor.initials}</span>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-cloud leading-tight">{sponsor.name}</p>
-                  <p className="text-xs text-cloud/40 leading-tight">{sponsor.ctaLabel}</p>
-                </div>
-              </Link>
-            ))}
+        {community.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-cloud/30 mb-5">Community Sponsors</p>
+            <div className="flex flex-wrap gap-3">
+              {community.map(sponsor => (
+                <Link key={sponsor.id} href={sponsor.ctaHref} className="flex items-center gap-3 bg-white/[0.05] border border-white/[0.08] rounded-2xl py-3 px-4 hover:bg-white/[0.08] active:scale-[0.97] transition-all">
+                  <div className="w-9 h-9 rounded-xl bg-pitch flex items-center justify-center shrink-0">
+                    <span className="text-cloud/70 font-bold text-xs">{sponsor.initials}</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-cloud leading-tight">{sponsor.name}</p>
+                    <p className="text-xs text-cloud/40 leading-tight">{sponsor.ctaLabel}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </section>
   )

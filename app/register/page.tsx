@@ -1,18 +1,14 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import ProgramCard from '@/components/program-card'
-import { mockPrograms } from '@/lib/programs'
+import { getPrograms } from '@/lib/data'
+
+export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   title: 'Register',
   description: 'Register for Elk Grove Soccer Spring 2026. Programs for ages 4–16 — recreational, select, academy, camps, and more.',
 }
-
-const openPrograms = mockPrograms.filter((p) => p.registrationStatus === 'open')
-const opensSoonPrograms = mockPrograms.filter((p) => p.registrationStatus === 'opens-soon')
-const closedPrograms = mockPrograms.filter(
-  (p) => p.registrationStatus === 'waitlist' || p.registrationStatus === 'closed'
-)
 
 const faq = [
   {
@@ -41,7 +37,13 @@ const faq = [
   },
 ]
 
-export default function RegisterPage() {
+export default async function RegisterPage() {
+  const allPrograms = await getPrograms()
+  const openPrograms = allPrograms.filter((p) => p.registrationStatus === 'open')
+  const opensSoonPrograms = allPrograms.filter((p) => p.registrationStatus === 'opens-soon')
+  const closedPrograms = allPrograms.filter(
+    (p) => p.registrationStatus === 'waitlist' || p.registrationStatus === 'closed'
+  )
   return (
     <>
       {/* ── Page Hero ──────────────────────────────────────── */}

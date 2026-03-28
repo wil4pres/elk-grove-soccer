@@ -1,16 +1,17 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { mockFields, getFieldStatusSummary } from '@/lib/fieldStatus'
-import type { FieldStatus } from '@/lib/fieldStatus'
+import { getFields, computeFieldSummary } from '@/lib/data'
+import type { Field, FieldStatus } from '@/lib/fieldStatus'
+
+export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   title: 'Field Status',
   description: 'Live field status for all Elk Grove Soccer complexes. Updated same-day by coaches and field crew.',
 }
 
-// Group fields by complex
-function groupByComplex(fields: typeof mockFields) {
-  return fields.reduce<Record<string, typeof mockFields>>((acc, field) => {
+function groupByComplex(fields: Field[]) {
+  return fields.reduce<Record<string, Field[]>>((acc, field) => {
     if (!acc[field.complex]) acc[field.complex] = []
     acc[field.complex].push(field)
     return acc
@@ -72,9 +73,10 @@ const faq = [
   },
 ]
 
-export default function FieldStatusPage() {
-  const summary = getFieldStatusSummary()
-  const complexGroups = groupByComplex(mockFields)
+export default async function FieldStatusPage() {
+  const fields = await getFields()
+  const summary = computeFieldSummary(fields)
+  const complexGroups = groupByComplex(fields)
   const sc = statusConfig[summary.status]
 
   const heroConfig = {
