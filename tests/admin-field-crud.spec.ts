@@ -119,8 +119,8 @@ test('admin: full field lifecycle — add, verify, edit, verify edit, delete', a
   await page.waitForURL('**/admin/fields', { timeout: 15000 })
 
   // ── 10. Verify edits are reflected in the list ────────────────
-  await expect(page.getByText(EDIT.name)).toBeVisible()
-  await expect(page.getByText(FIELD.name)).not.toBeVisible() // old name gone
+  await expect(page.getByText(EDIT.name, { exact: true })).toBeVisible()
+  await expect(page.getByText(FIELD.name, { exact: true })).not.toBeVisible() // old name gone
   // Status badge should show "delay"
   const editedRow = page.locator(`a[href="/admin/fields?edit=${FIELD_ID}"]`).locator('../..')
   await expect(editedRow.getByText('delay', { exact: false })).toBeVisible()
