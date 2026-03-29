@@ -44,14 +44,20 @@ const statusConfig: Record<FieldStatus, {
   },
 }
 
-const complexAddresses: Record<string, string> = {
-  'Cherry Island Complex': '6300 Bilby Rd, Elk Grove, CA 95758',
-  'Laguna Park Complex': '9830 Waterman Rd, Elk Grove, CA 95624',
-}
-
-const complexMapsLinks: Record<string, string> = {
-  'Cherry Island Complex': 'https://maps.apple.com/?address=6300+Bilby+Rd,+Elk+Grove,+CA+95758',
-  'Laguna Park Complex': 'https://maps.apple.com/?address=9830+Waterman+Rd,+Elk+Grove,+CA+95624',
+// Derive address and maps link from the first field that has an address in each complex
+function getComplexMeta(fields: Field[]): Record<string, { address: string; mapsLink: string; parkingInfo: string; amenities: string }> {
+  const meta: Record<string, { address: string; mapsLink: string; parkingInfo: string; amenities: string }> = {}
+  for (const f of fields) {
+    if (!meta[f.complex] && f.address) {
+      meta[f.complex] = {
+        address: f.address,
+        mapsLink: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(f.address)}`,
+        parkingInfo: f.parkingInfo ?? '',
+        amenities: f.amenities ?? '',
+      }
+    }
+  }
+  return meta
 }
 
 const faq = [
@@ -77,6 +83,7 @@ export default async function FieldStatusPage() {
   const fields = await getFields()
   const summary = computeFieldSummary(fields)
   const complexGroups = groupByComplex(fields)
+  const complexMeta = getComplexMeta(fields)
   const sc = statusConfig[summary.status]
 
   const heroConfig = {
@@ -155,23 +162,42 @@ export default async function FieldStatusPage() {
           {Object.entries(complexGroups).map(([complexName, fields]) => (
             <div key={complexName} className="mb-12 last:mb-0">
               {/* Complex header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-                <div>
-                  <h2 className="text-xl font-bold text-cloud">{complexName}</h2>
-                  <p className="text-sm text-cloud/40 mt-0.5">{complexAddresses[complexName]}</p>
-                </div>
-                <a
-                  href={complexMapsLinks[complexName]}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0 inline-flex items-center gap-2 bg-leaf/[0.1] border border-leaf/[0.2] text-leaf font-semibold rounded-2xl py-2.5 px-4 text-sm hover:bg-leaf/[0.15] transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
-                  </svg>
-                  Get directions
-                </a>
-              </div>
+              {(() => {
+                const meta = complexMeta[complexName]
+                return (
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-5">
+                    <div>
+                      <h2 className="text-xl font-bold text-cloud">{complexName}</h2>
+                      {meta?.address && <p className="text-sm text-cloud/40 mt-0.5">{meta.address}</p>}
+                      {meta?.parkingInfo && <p className="text-xs text-cloud/30 mt-1">🅿️ {meta.parkingInfo}</p>}
+                      {meta?.amenities && <p className="text-xs text-cloud/30 mt-0.5">🏟️ {meta.amenities}</p>}
+                    </div>
+                    {meta?.mapsLink && (
+                      <div className="flex gap-2 shrink-0">
+                        <a
+                          href={meta.mapsLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 bg-leaf/[0.1] border border-leaf/[0.2] text-leaf font-semibold rounded-2xl py-2.5 px-4 text-sm hover:bg-leaf/[0.15] transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
+                          </svg>
+                          Get directions
+                        </a>
+                        <a
+                          href={`https://www.google.com/maps?q=${encodeURIComponent(meta.address)}&output=embed`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 bg-white/[0.06] border border-white/[0.12] text-cloud/70 font-semibold rounded-2xl py-2.5 px-4 text-sm hover:bg-white/[0.1] transition-colors"
+                        >
+                          View map
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
 
               {/* Field cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

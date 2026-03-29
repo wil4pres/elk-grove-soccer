@@ -4,11 +4,14 @@ import Link from 'next/link'
 import { saveField, deleteField, updateFieldStatus } from './actions'
 import { ConfirmDelete } from '../_components/confirm-delete'
 import { StatusButtons } from '../_components/status-buttons'
+import { FieldForm } from './_components/field-form'
 
 export const dynamic = 'force-dynamic'
 
 type Field = {
-  id: string; name: string; complex: string; status: 'open' | 'delay' | 'closed'
+  id: string; name: string; complex: string; address: string
+  parkingInfo: string; amenities: string
+  status: 'open' | 'delay' | 'closed'
   notes: string; updatedAt: string; updatedBy: string
 }
 
@@ -46,42 +49,7 @@ export default async function FieldsPage({ searchParams }: Props) {
       {showForm && (
         <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-6">
           <h2 className="font-semibold text-gray-900 mb-4">{editingField ? 'Edit Field' : 'Add Field'}</h2>
-          <form action={saveField} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <input type="hidden" name="id" defaultValue={editingField?.id ?? ''} />
-            <div>
-              <label className="label">Field ID {!editingField && <span className="text-gray-400">(e.g. ci-f3)</span>}</label>
-              <input name="id" required defaultValue={editingField?.id ?? ''} readOnly={!!editingField}
-                className={`input ${editingField ? 'bg-gray-50 text-gray-400' : ''}`} placeholder="ci-f3" />
-            </div>
-            <div>
-              <label className="label">Field Name</label>
-              <input name="name" required defaultValue={editingField?.name ?? ''} className="input" placeholder="Field 3" />
-            </div>
-            <div>
-              <label className="label">Complex</label>
-              <input name="complex" required defaultValue={editingField?.complex ?? ''} className="input" placeholder="Cherry Island Complex" />
-            </div>
-            <div>
-              <label className="label">Status</label>
-              <select name="status" defaultValue={editingField?.status ?? 'open'} className="input">
-                <option value="open">Open</option>
-                <option value="delay">Delay</option>
-                <option value="closed">Closed</option>
-              </select>
-            </div>
-            <div className="sm:col-span-2">
-              <label className="label">Notes</label>
-              <input name="notes" defaultValue={editingField?.notes ?? ''} className="input" placeholder="Surface clear. Trainers on site." />
-            </div>
-            <div>
-              <label className="label">Updated By</label>
-              <input name="updatedBy" defaultValue={editingField?.updatedBy ?? ''} className="input" placeholder="Coach Reyes" />
-            </div>
-            <div className="sm:col-span-2 flex gap-3 pt-2">
-              <button type="submit" className="btn-primary">{editingField ? 'Save Changes' : 'Add Field'}</button>
-              <Link href="/admin/fields" className="btn-secondary">Cancel</Link>
-            </div>
-          </form>
+          <FieldForm editingField={editingField ?? null} saveAction={saveField} />
         </div>
       )}
 
@@ -92,7 +60,7 @@ export default async function FieldsPage({ searchParams }: Props) {
           <div className="divide-y divide-gray-100">
             {fields.map(field => (
               <div key={field.id} className={`p-4 ${edit === field.id ? 'bg-blue-50' : ''}`}>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-start gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="font-semibold text-gray-900">{field.name}</span>
@@ -101,7 +69,19 @@ export default async function FieldsPage({ searchParams }: Props) {
                       </span>
                     </div>
                     <p className="text-sm text-gray-500">{field.complex}</p>
+                    {field.address && (
+                      <a
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(field.address)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 hover:underline mt-0.5 block"
+                      >
+                        📍 {field.address}
+                      </a>
+                    )}
                     {field.notes && <p className="text-sm text-gray-600 mt-1">{field.notes}</p>}
+                    {field.parkingInfo && <p className="text-xs text-gray-400 mt-1">🅿️ {field.parkingInfo}</p>}
+                    {field.amenities && <p className="text-xs text-gray-400 mt-0.5">🏟️ {field.amenities}</p>}
                     <p className="text-xs text-gray-400 mt-1">Updated {field.updatedAt} by {field.updatedBy}</p>
                   </div>
                   <div className="flex flex-col gap-2 shrink-0">

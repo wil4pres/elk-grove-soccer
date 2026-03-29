@@ -4,6 +4,9 @@ export interface Field {
   id: string
   name: string
   complex: string
+  address: string
+  parkingInfo: string
+  amenities: string
   status: FieldStatus
   notes: string
   updatedAt: string

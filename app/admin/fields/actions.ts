@@ -12,9 +12,12 @@ export async function saveField(formData: FormData) {
     id,
     name: formData.get('name') as string,
     complex: formData.get('complex') as string,
+    address: (formData.get('address') as string) ?? '',
+    parkingInfo: (formData.get('parkingInfo') as string) ?? '',
+    amenities: (formData.get('amenities') as string) ?? '',
     status: formData.get('status') as string,
-    notes: formData.get('notes') as string,
-    updatedBy: formData.get('updatedBy') as string,
+    notes: (formData.get('notes') as string) ?? '',
+    updatedBy: (formData.get('updatedBy') as string) ?? '',
     updatedAt: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
   }
   await db.send(new PutCommand({ TableName: TABLE, Item: item }))
