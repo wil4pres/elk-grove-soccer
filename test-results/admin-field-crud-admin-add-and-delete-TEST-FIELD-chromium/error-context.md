@@ -31,82 +31,240 @@
       - link "Register 2026" [ref=e23] [cursor=pointer]:
         - /url: /register
   - main [ref=e24]:
-    - generic [ref=e26]:
-      - generic [ref=e27]:
-        - generic [ref=e29]: EG
-        - heading "Admin Panel" [level=1] [ref=e30]
-        - paragraph [ref=e31]: Elk Grove Soccer
-      - generic [ref=e32]:
-        - generic [ref=e33]:
-          - generic [ref=e34]: Password
-          - textbox "Enter admin password" [active] [ref=e35]
-        - button "Sign in" [ref=e36]
-  - contentinfo [ref=e37]:
-    - generic [ref=e38]:
-      - generic [ref=e39]:
-        - generic [ref=e40]:
-          - link "EG Elk Grove Soccer" [ref=e41] [cursor=pointer]:
+    - generic [ref=e25]:
+      - navigation [ref=e26]:
+        - generic [ref=e27]:
+          - link "EGS Admin" [ref=e28] [cursor=pointer]:
             - /url: /
-            - generic [ref=e43]: EG
-            - generic [ref=e44]: Elk Grove Soccer
-          - paragraph [ref=e45]: Sacramento's community soccer club. Building players, families, and community since 2001.
-          - generic [ref=e47]: NorCal Premier League
-        - generic [ref=e48]:
-          - heading "Parents" [level=3] [ref=e49]
-          - list [ref=e50]:
-            - listitem [ref=e51]:
-              - link "Field Status" [ref=e52] [cursor=pointer]:
+          - generic [ref=e29]:
+            - link "Dashboard" [ref=e30] [cursor=pointer]:
+              - /url: /admin
+            - link "Fields" [ref=e31] [cursor=pointer]:
+              - /url: /admin/fields
+            - link "Programs" [ref=e32] [cursor=pointer]:
+              - /url: /admin/programs
+            - link "Sponsors" [ref=e33] [cursor=pointer]:
+              - /url: /admin/sponsors
+            - link "Alumni" [ref=e34] [cursor=pointer]:
+              - /url: /admin/alumni
+            - link "Staff" [ref=e35] [cursor=pointer]:
+              - /url: /admin/staff
+          - button "Sign out" [ref=e36]
+      - main [ref=e37]:
+        - generic [ref=e38]:
+          - generic [ref=e39]:
+            - generic [ref=e40]:
+              - heading "Field Status" [level=1] [ref=e41]
+              - paragraph [ref=e42]: 8 fields
+            - link "+ Add Field" [ref=e43] [cursor=pointer]:
+              - /url: /admin/fields?add=1
+          - generic [ref=e45]:
+            - generic [ref=e47]:
+              - generic [ref=e48]:
+                - generic [ref=e49]:
+                  - generic [ref=e50]: Diag Field
+                  - generic [ref=e51]: open
+                - paragraph [ref=e52]: Cherry Island Complex
+                - link "📍 6300 Bilby Rd" [ref=e53] [cursor=pointer]:
+                  - /url: https://www.google.com/maps/dir/?api=1&destination=6300%20Bilby%20Rd
+                - paragraph [ref=e54]: Updated 9:36 PM by test
+              - generic [ref=e55]:
+                - generic [ref=e56]:
+                  - button "open" [disabled] [ref=e57]
+                  - button "delay" [ref=e58]
+                  - button "closed" [ref=e59]
+                - generic [ref=e60]:
+                  - link "Edit" [ref=e61] [cursor=pointer]:
+                    - /url: /admin/fields?edit=test-diag
+                  - button "Delete" [ref=e62]
+            - generic [ref=e64]:
+              - generic [ref=e65]:
+                - generic [ref=e66]:
+                  - generic [ref=e67]: Field 1
+                  - generic [ref=e68]: open
+                - paragraph [ref=e69]: Cherry Island Complex
+                - paragraph [ref=e70]: Surface clear. Trainers on site.
+                - paragraph [ref=e71]: Updated 7:55 AM by Coach Reyes
+              - generic [ref=e72]:
+                - generic [ref=e73]:
+                  - button "open" [disabled] [ref=e74]
+                  - button "delay" [ref=e75]
+                  - button "closed" [ref=e76]
+                - generic [ref=e77]:
+                  - link "Edit" [ref=e78] [cursor=pointer]:
+                    - /url: /admin/fields?edit=ci-f1
+                  - button "Delete" [ref=e79]
+            - generic [ref=e81]:
+              - generic [ref=e82]:
+                - generic [ref=e83]:
+                  - generic [ref=e84]: Field 2
+                  - generic [ref=e85]: open
+                - paragraph [ref=e86]: Cherry Island Complex
+                - paragraph [ref=e87]: Kickoff 09:30 — Academy Navy vs Folsom.
+                - paragraph [ref=e88]: Updated 7:55 AM by Coach Reyes
+              - generic [ref=e89]:
+                - generic [ref=e90]:
+                  - button "open" [disabled] [ref=e91]
+                  - button "delay" [ref=e92]
+                  - button "closed" [ref=e93]
+                - generic [ref=e94]:
+                  - link "Edit" [ref=e95] [cursor=pointer]:
+                    - /url: /admin/fields?edit=ci-f2
+                  - button "Delete" [ref=e96]
+            - generic [ref=e98]:
+              - generic [ref=e99]:
+                - generic [ref=e100]:
+                  - generic [ref=e101]: Field 4
+                  - generic [ref=e102]: open
+                - paragraph [ref=e103]: Cherry Island Complex
+                - paragraph [ref=e104]: Kickoff 08:45 — 10U Green vs Storm FC.
+                - paragraph [ref=e105]: Updated 7:55 AM by Coach Reyes
+              - generic [ref=e106]:
+                - generic [ref=e107]:
+                  - button "open" [disabled] [ref=e108]
+                  - button "delay" [ref=e109]
+                  - button "closed" [ref=e110]
+                - generic [ref=e111]:
+                  - link "Edit" [ref=e112] [cursor=pointer]:
+                    - /url: /admin/fields?edit=ci-f4
+                  - button "Delete" [ref=e113]
+            - generic [ref=e115]:
+              - generic [ref=e116]:
+                - generic [ref=e117]:
+                  - generic [ref=e118]: Field 7
+                  - generic [ref=e119]: delay
+                - paragraph [ref=e120]: Cherry Island Complex
+                - paragraph [ref=e121]: Standing water near south goal. Re-evaluate 9 AM.
+                - paragraph [ref=e122]: Updated 8:02 AM by Field Crew
+              - generic [ref=e123]:
+                - generic [ref=e124]:
+                  - button "open" [ref=e125]
+                  - button "delay" [disabled] [ref=e126]
+                  - button "closed" [ref=e127]
+                - generic [ref=e128]:
+                  - link "Edit" [ref=e129] [cursor=pointer]:
+                    - /url: /admin/fields?edit=ci-f7
+                  - button "Delete" [ref=e130]
+            - generic [ref=e132]:
+              - generic [ref=e133]:
+                - generic [ref=e134]:
+                  - generic [ref=e135]: TEST FIELD
+                  - generic [ref=e136]: open
+                - paragraph [ref=e137]: Cherry Island Complex
+                - link "📍 6300 Bilby Rd, Elk Grove, CA 95758" [ref=e138] [cursor=pointer]:
+                  - /url: https://www.google.com/maps/dir/?api=1&destination=6300%20Bilby%20Rd%2C%20Elk%20Grove%2C%20CA%2095758
+                - paragraph [ref=e139]: 🅿️ Lots A and B — enter from Bilby Rd. Arrive 20 min early.
+                - paragraph [ref=e140]: 🏟️ Restrooms near concession stand (Fields 2–3). Concession stand open game days.
+                - paragraph [ref=e141]: Updated 9:43 PM by Playwright Test
+              - generic [ref=e142]:
+                - generic [ref=e143]:
+                  - button "open" [disabled] [ref=e144]
+                  - button "delay" [ref=e145]
+                  - button "closed" [ref=e146]
+                - generic [ref=e147]:
+                  - link "Edit" [ref=e148] [cursor=pointer]:
+                    - /url: /admin/fields?edit=test-field-001
+                  - button "Delete" [active] [ref=e149]
+            - generic [ref=e151]:
+              - generic [ref=e152]:
+                - generic [ref=e153]:
+                  - generic [ref=e154]: Field 1
+                  - generic [ref=e155]: open
+                - paragraph [ref=e156]: Laguna Park Complex
+                - paragraph [ref=e157]: All clear.
+                - paragraph [ref=e158]: Updated 7:45 AM by Admin
+              - generic [ref=e159]:
+                - generic [ref=e160]:
+                  - button "open" [disabled] [ref=e161]
+                  - button "delay" [ref=e162]
+                  - button "closed" [ref=e163]
+                - generic [ref=e164]:
+                  - link "Edit" [ref=e165] [cursor=pointer]:
+                    - /url: /admin/fields?edit=lo-f1
+                  - button "Delete" [ref=e166]
+            - generic [ref=e168]:
+              - generic [ref=e169]:
+                - generic [ref=e170]:
+                  - generic [ref=e171]: Field 2
+                  - generic [ref=e172]: open
+                - paragraph [ref=e173]: Laguna Park Complex
+                - paragraph [ref=e174]: U8 rec games, 9 AM start.
+                - paragraph [ref=e175]: Updated 7:45 AM by Admin
+              - generic [ref=e176]:
+                - generic [ref=e177]:
+                  - button "open" [disabled] [ref=e178]
+                  - button "delay" [ref=e179]
+                  - button "closed" [ref=e180]
+                - generic [ref=e181]:
+                  - link "Edit" [ref=e182] [cursor=pointer]:
+                    - /url: /admin/fields?edit=lo-f2
+                  - button "Delete" [ref=e183]
+  - contentinfo [ref=e184]:
+    - generic [ref=e185]:
+      - generic [ref=e186]:
+        - generic [ref=e187]:
+          - link "EG Elk Grove Soccer" [ref=e188] [cursor=pointer]:
+            - /url: /
+            - generic [ref=e190]: EG
+            - generic [ref=e191]: Elk Grove Soccer
+          - paragraph [ref=e192]: Sacramento's community soccer club. Building players, families, and community since 2001.
+          - generic [ref=e194]: NorCal Premier League
+        - generic [ref=e195]:
+          - heading "Parents" [level=3] [ref=e196]
+          - list [ref=e197]:
+            - listitem [ref=e198]:
+              - link "Field Status" [ref=e199] [cursor=pointer]:
                 - /url: /field-status
-            - listitem [ref=e53]:
-              - link "Register" [ref=e54] [cursor=pointer]:
+            - listitem [ref=e200]:
+              - link "Register" [ref=e201] [cursor=pointer]:
                 - /url: /register
-            - listitem [ref=e55]:
-              - link "Maps & Schedules" [ref=e56] [cursor=pointer]:
+            - listitem [ref=e202]:
+              - link "Maps & Schedules" [ref=e203] [cursor=pointer]:
                 - /url: /maps
-            - listitem [ref=e57]:
-              - link "Contact" [ref=e58] [cursor=pointer]:
+            - listitem [ref=e204]:
+              - link "Contact" [ref=e205] [cursor=pointer]:
                 - /url: /contact
-            - listitem [ref=e59]:
-              - link "Volunteer" [ref=e60] [cursor=pointer]:
+            - listitem [ref=e206]:
+              - link "Volunteer" [ref=e207] [cursor=pointer]:
                 - /url: /volunteer
-        - generic [ref=e61]:
-          - heading "Programs" [level=3] [ref=e62]
-          - list [ref=e63]:
-            - listitem [ref=e64]:
-              - link "Future Stars (U5–U7)" [ref=e65] [cursor=pointer]:
+        - generic [ref=e208]:
+          - heading "Programs" [level=3] [ref=e209]
+          - list [ref=e210]:
+            - listitem [ref=e211]:
+              - link "Future Stars (U5–U7)" [ref=e212] [cursor=pointer]:
                 - /url: /programs#future-stars
-            - listitem [ref=e66]:
-              - link "Recreational (U8–U12)" [ref=e67] [cursor=pointer]:
+            - listitem [ref=e213]:
+              - link "Recreational (U8–U12)" [ref=e214] [cursor=pointer]:
                 - /url: /programs#recreational
-            - listitem [ref=e68]:
-              - link "Select (U11+)" [ref=e69] [cursor=pointer]:
+            - listitem [ref=e215]:
+              - link "Select (U11+)" [ref=e216] [cursor=pointer]:
                 - /url: /programs#select
-            - listitem [ref=e70]:
-              - link "Academy (U13–U16)" [ref=e71] [cursor=pointer]:
+            - listitem [ref=e217]:
+              - link "Academy (U13–U16)" [ref=e218] [cursor=pointer]:
                 - /url: /programs#academy
-            - listitem [ref=e72]:
-              - link "Camps & Clinics" [ref=e73] [cursor=pointer]:
+            - listitem [ref=e219]:
+              - link "Camps & Clinics" [ref=e220] [cursor=pointer]:
                 - /url: /programs#camps
-        - generic [ref=e74]:
-          - heading "Club" [level=3] [ref=e75]
-          - list [ref=e76]:
-            - listitem [ref=e77]:
-              - link "Alumni" [ref=e78] [cursor=pointer]:
+        - generic [ref=e221]:
+          - heading "Club" [level=3] [ref=e222]
+          - list [ref=e223]:
+            - listitem [ref=e224]:
+              - link "Alumni" [ref=e225] [cursor=pointer]:
                 - /url: /alumni
-            - listitem [ref=e79]:
-              - link "Sponsors" [ref=e80] [cursor=pointer]:
+            - listitem [ref=e226]:
+              - link "Sponsors" [ref=e227] [cursor=pointer]:
                 - /url: /sponsors
-            - listitem [ref=e81]:
-              - link "Become a Partner" [ref=e82] [cursor=pointer]:
+            - listitem [ref=e228]:
+              - link "Become a Partner" [ref=e229] [cursor=pointer]:
                 - /url: /sponsors#partner
-            - listitem [ref=e83]:
-              - link "Coaching Staff" [ref=e84] [cursor=pointer]:
+            - listitem [ref=e230]:
+              - link "Coaching Staff" [ref=e231] [cursor=pointer]:
                 - /url: /staff
-            - listitem [ref=e85]:
-              - link "Club History" [ref=e86] [cursor=pointer]:
+            - listitem [ref=e232]:
+              - link "Club History" [ref=e233] [cursor=pointer]:
                 - /url: /about
-      - generic [ref=e87]:
-        - paragraph [ref=e88]: © 2026 Elk Grove Soccer. All rights reserved.
-        - generic [ref=e91]: NorCal Premier League Member
-  - alert [ref=e92]
+      - generic [ref=e234]:
+        - paragraph [ref=e235]: © 2026 Elk Grove Soccer. All rights reserved.
+        - generic [ref=e238]: NorCal Premier League Member
+  - alert [ref=e239]
 ```

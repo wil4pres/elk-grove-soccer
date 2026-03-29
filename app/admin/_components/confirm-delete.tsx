@@ -1,17 +1,43 @@
 'use client'
 import { useTransition } from 'react'
 
-export function ConfirmDelete({ action, label = 'Delete' }: { action: () => Promise<void>; label?: string }) {
+interface Props {
+  /** Server action to call (used when apiUrl is not provided) */
+  action?: () => Promise<void>
+  /** API route to POST to instead of a server action */
+  apiUrl?: string
+  /** JSON body for the API route */
+  apiBody?: Record<string, unknown>
+  label?: string
+}
+
+export function ConfirmDelete({ action, apiUrl, apiBody, label = 'Delete' }: Props) {
   const [pending, startTransition] = useTransition()
+
+  function handleClick() {
+    if (!confirm('Delete this item? This cannot be undone.')) return
+
+    if (apiUrl) {
+      fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(apiBody ?? {}),
+      }).then(() => {
+        window.location.reload()
+      })
+      return
+    }
+
+    if (action) {
+      startTransition(() => action())
+    }
+  }
 
   return (
     <button
       disabled={pending}
-      onClick={() => {
-        if (confirm('Delete this item? This cannot be undone.')) {
-          startTransition(() => action())
-        }
-      }}
+      onClick={handleClick}
       className="text-sm text-red-500 hover:text-red-700 font-medium disabled:opacity-40 transition-colors"
     >
       {pending ? 'Deleting…' : label}

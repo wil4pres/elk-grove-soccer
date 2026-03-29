@@ -88,7 +88,7 @@ export default async function FieldsPage({ searchParams }: Props) {
                     <StatusButtons fieldId={field.id} current={field.status} updateAction={updateFieldStatus} />
                     <div className="flex gap-3 text-sm">
                       <Link href={`/admin/fields?edit=${field.id}`} className="text-blue-600 hover:text-blue-800 font-medium">Edit</Link>
-                      <ConfirmDelete action={deleteField.bind(null, field.id)} />
+                      <ConfirmDelete apiUrl="/api/fields/delete" apiBody={{ id: field.id }} />
                     </div>
                   </div>
                 </div>

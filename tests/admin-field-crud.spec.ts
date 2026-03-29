@@ -34,18 +34,14 @@ test('admin: add and delete TEST FIELD', async ({ page }) => {
   console.log('✅ TEST FIELD added successfully')
 
   // ── 7. Delete the field ───────────────────────────────────────
-  const fieldRow = page.locator('div').filter({ hasText: /^TEST FIELD/ }).first()
-  const deleteBtn = fieldRow.getByRole('button', { name: /delete/i })
-  await deleteBtn.click()
+  // Accept the browser confirm() dialog automatically
+  page.on('dialog', dialog => dialog.accept())
 
-  // Handle confirm dialog if present
-  await page.waitForTimeout(500)
-  const confirmBtn = page.getByRole('button', { name: /confirm|yes/i })
-  if (await confirmBtn.isVisible().catch(() => false)) {
-    await confirmBtn.click()
-  }
+  const fieldRow = page.locator('div').filter({ hasText: 'TEST FIELD' }).first()
+  await fieldRow.getByRole('button', { name: 'Delete' }).click()
 
-  await page.waitForURL('**/admin/fields', { timeout: 10000 })
+  // Wait for page reload after delete
+  await page.waitForLoadState('networkidle', { timeout: 10000 })
 
   // ── 8. Verify field is gone ───────────────────────────────────
   await expect(page.getByText('TEST FIELD')).not.toBeVisible()
