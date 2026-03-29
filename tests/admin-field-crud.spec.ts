@@ -37,11 +37,13 @@ test('admin: add and delete TEST FIELD', async ({ page }) => {
   // Accept the browser confirm() dialog automatically
   page.on('dialog', dialog => dialog.accept())
 
-  const fieldRow = page.locator('div').filter({ hasText: 'TEST FIELD' }).first()
-  await fieldRow.getByRole('button', { name: 'Delete' }).click()
+  // Click the Delete button that's a sibling of the Edit link for our specific field
+  const editLink = page.locator('a[href="/admin/fields?edit=test-field-001"]')
+  await editLink.locator('..').locator('..').getByRole('button', { name: 'Delete' }).click()
 
   // Wait for page reload after delete
-  await page.waitForLoadState('networkidle', { timeout: 10000 })
+  await page.waitForLoadState('load', { timeout: 10000 })
+  await page.waitForTimeout(1000)
 
   // ── 8. Verify field is gone ───────────────────────────────────
   await expect(page.getByText('TEST FIELD')).not.toBeVisible()
