@@ -1,7 +1,3 @@
-import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm'
-
-const ssm = new SSMClient({ region: process.env.DYNAMO_REGION ?? 'us-east-1' })
-
 const cache = new Map<string, { value: string; expiresAt: number }>()
 const TTL = 5 * 60 * 1000 // cache secrets for 5 minutes
 
@@ -10,6 +6,8 @@ async function getSecret(name: string): Promise<string> {
   if (cached && cached.expiresAt > Date.now()) return cached.value
 
   try {
+    const { SSMClient, GetParameterCommand } = await import('@aws-sdk/client-ssm')
+    const ssm = new SSMClient({ region: process.env.DYNAMO_REGION ?? 'us-east-1' })
     const res = await ssm.send(new GetParameterCommand({
       Name: name,
       WithDecryption: true,
@@ -19,7 +17,6 @@ async function getSecret(name: string): Promise<string> {
     return value
   } catch (err) {
     console.error(`Failed to fetch secret ${name}:`, err)
-    // Fall back to env var if SSM is unavailable (local dev)
     return ''
   }
 }
