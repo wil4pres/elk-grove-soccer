@@ -1,7 +1,7 @@
 import { ScanCommand } from '@aws-sdk/lib-dynamodb'
 import { db } from '@/lib/dynamo'
 import Link from 'next/link'
-import { saveField, deleteField, updateFieldStatus } from './actions'
+import { deleteField, updateFieldStatus } from './actions'
 import { ConfirmDelete } from '../_components/confirm-delete'
 import { StatusButtons } from '../_components/status-buttons'
 import { FieldForm } from './_components/field-form'
@@ -49,7 +49,7 @@ export default async function FieldsPage({ searchParams }: Props) {
       {showForm && (
         <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-6">
           <h2 className="font-semibold text-gray-900 mb-4">{editingField ? 'Edit Field' : 'Add Field'}</h2>
-          <FieldForm editingField={editingField ?? null} saveAction={saveField} />
+          <FieldForm editingField={editingField ?? null} />
         </div>
       )}
 

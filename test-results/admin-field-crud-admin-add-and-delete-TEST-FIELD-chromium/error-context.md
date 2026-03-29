@@ -31,102 +31,82 @@
       - link "Register 2026" [ref=e23] [cursor=pointer]:
         - /url: /register
   - main [ref=e24]:
-    - generic [ref=e25]:
-      - navigation [ref=e26]:
-        - generic [ref=e27]:
-          - link "EGS Admin" [ref=e28] [cursor=pointer]:
-            - /url: /
-          - generic [ref=e29]:
-            - link "Dashboard" [ref=e30] [cursor=pointer]:
-              - /url: /admin
-            - link "Fields" [ref=e31] [cursor=pointer]:
-              - /url: /admin/fields
-            - link "Programs" [ref=e32] [cursor=pointer]:
-              - /url: /admin/programs
-            - link "Sponsors" [ref=e33] [cursor=pointer]:
-              - /url: /admin/sponsors
-            - link "Alumni" [ref=e34] [cursor=pointer]:
-              - /url: /admin/alumni
-            - link "Staff" [ref=e35] [cursor=pointer]:
-              - /url: /admin/staff
-          - button "Sign out" [ref=e37]
-      - main [ref=e38]:
+    - generic [ref=e26]:
+      - generic [ref=e27]:
+        - generic [ref=e29]: EG
+        - heading "Admin Panel" [level=1] [ref=e30]
+        - paragraph [ref=e31]: Elk Grove Soccer
+      - generic [ref=e32]:
+        - generic [ref=e33]:
+          - generic [ref=e34]: Password
+          - textbox "Enter admin password" [active] [ref=e35]
+        - button "Sign in" [ref=e36]
+  - contentinfo [ref=e37]:
+    - generic [ref=e38]:
+      - generic [ref=e39]:
         - generic [ref=e40]:
-          - generic [ref=e41]:
-            - generic [ref=e43]: EG
-            - heading "Admin Panel" [level=1] [ref=e44]
-            - paragraph [ref=e45]: Elk Grove Soccer
-          - generic [ref=e46]:
-            - generic [ref=e47]:
-              - generic [ref=e48]: Password
-              - textbox "Enter admin password" [active] [ref=e49]
-            - button "Sign in" [ref=e50]
-  - contentinfo [ref=e51]:
-    - generic [ref=e52]:
-      - generic [ref=e53]:
-        - generic [ref=e54]:
-          - link "EG Elk Grove Soccer" [ref=e55] [cursor=pointer]:
+          - link "EG Elk Grove Soccer" [ref=e41] [cursor=pointer]:
             - /url: /
-            - generic [ref=e57]: EG
-            - generic [ref=e58]: Elk Grove Soccer
-          - paragraph [ref=e59]: Sacramento's community soccer club. Building players, families, and community since 2001.
-          - generic [ref=e61]: NorCal Premier League
-        - generic [ref=e62]:
-          - heading "Parents" [level=3] [ref=e63]
-          - list [ref=e64]:
-            - listitem [ref=e65]:
-              - link "Field Status" [ref=e66] [cursor=pointer]:
+            - generic [ref=e43]: EG
+            - generic [ref=e44]: Elk Grove Soccer
+          - paragraph [ref=e45]: Sacramento's community soccer club. Building players, families, and community since 2001.
+          - generic [ref=e47]: NorCal Premier League
+        - generic [ref=e48]:
+          - heading "Parents" [level=3] [ref=e49]
+          - list [ref=e50]:
+            - listitem [ref=e51]:
+              - link "Field Status" [ref=e52] [cursor=pointer]:
                 - /url: /field-status
-            - listitem [ref=e67]:
-              - link "Register" [ref=e68] [cursor=pointer]:
+            - listitem [ref=e53]:
+              - link "Register" [ref=e54] [cursor=pointer]:
                 - /url: /register
-            - listitem [ref=e69]:
-              - link "Maps & Schedules" [ref=e70] [cursor=pointer]:
+            - listitem [ref=e55]:
+              - link "Maps & Schedules" [ref=e56] [cursor=pointer]:
                 - /url: /maps
-            - listitem [ref=e71]:
-              - link "Contact" [ref=e72] [cursor=pointer]:
+            - listitem [ref=e57]:
+              - link "Contact" [ref=e58] [cursor=pointer]:
                 - /url: /contact
-            - listitem [ref=e73]:
-              - link "Volunteer" [ref=e74] [cursor=pointer]:
+            - listitem [ref=e59]:
+              - link "Volunteer" [ref=e60] [cursor=pointer]:
                 - /url: /volunteer
-        - generic [ref=e75]:
-          - heading "Programs" [level=3] [ref=e76]
-          - list [ref=e77]:
-            - listitem [ref=e78]:
-              - link "Future Stars (U5–U7)" [ref=e79] [cursor=pointer]:
+        - generic [ref=e61]:
+          - heading "Programs" [level=3] [ref=e62]
+          - list [ref=e63]:
+            - listitem [ref=e64]:
+              - link "Future Stars (U5–U7)" [ref=e65] [cursor=pointer]:
                 - /url: /programs#future-stars
-            - listitem [ref=e80]:
-              - link "Recreational (U8–U12)" [ref=e81] [cursor=pointer]:
+            - listitem [ref=e66]:
+              - link "Recreational (U8–U12)" [ref=e67] [cursor=pointer]:
                 - /url: /programs#recreational
-            - listitem [ref=e82]:
-              - link "Select (U11+)" [ref=e83] [cursor=pointer]:
+            - listitem [ref=e68]:
+              - link "Select (U11+)" [ref=e69] [cursor=pointer]:
                 - /url: /programs#select
-            - listitem [ref=e84]:
-              - link "Academy (U13–U16)" [ref=e85] [cursor=pointer]:
+            - listitem [ref=e70]:
+              - link "Academy (U13–U16)" [ref=e71] [cursor=pointer]:
                 - /url: /programs#academy
-            - listitem [ref=e86]:
-              - link "Camps & Clinics" [ref=e87] [cursor=pointer]:
+            - listitem [ref=e72]:
+              - link "Camps & Clinics" [ref=e73] [cursor=pointer]:
                 - /url: /programs#camps
-        - generic [ref=e88]:
-          - heading "Club" [level=3] [ref=e89]
-          - list [ref=e90]:
-            - listitem [ref=e91]:
-              - link "Alumni" [ref=e92] [cursor=pointer]:
+        - generic [ref=e74]:
+          - heading "Club" [level=3] [ref=e75]
+          - list [ref=e76]:
+            - listitem [ref=e77]:
+              - link "Alumni" [ref=e78] [cursor=pointer]:
                 - /url: /alumni
-            - listitem [ref=e93]:
-              - link "Sponsors" [ref=e94] [cursor=pointer]:
+            - listitem [ref=e79]:
+              - link "Sponsors" [ref=e80] [cursor=pointer]:
                 - /url: /sponsors
-            - listitem [ref=e95]:
-              - link "Become a Partner" [ref=e96] [cursor=pointer]:
+            - listitem [ref=e81]:
+              - link "Become a Partner" [ref=e82] [cursor=pointer]:
                 - /url: /sponsors#partner
-            - listitem [ref=e97]:
-              - link "Coaching Staff" [ref=e98] [cursor=pointer]:
+            - listitem [ref=e83]:
+              - link "Coaching Staff" [ref=e84] [cursor=pointer]:
                 - /url: /staff
-            - listitem [ref=e99]:
-              - link "Club History" [ref=e100] [cursor=pointer]:
+            - listitem [ref=e85]:
+              - link "Club History" [ref=e86] [cursor=pointer]:
                 - /url: /about
-      - generic [ref=e101]:
-        - paragraph [ref=e102]: © 2026 Elk Grove Soccer. All rights reserved.
-        - generic [ref=e105]: NorCal Premier League Member
-  - alert [ref=e106]
+      - generic [ref=e87]:
+        - paragraph [ref=e88]: © 2026 Elk Grove Soccer. All rights reserved.
+        - generic [ref=e91]: NorCal Premier League Member
+  - alert [ref=e92]
 ```
