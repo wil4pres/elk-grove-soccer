@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { SignJWT } from 'jose'
 import { validatePassword } from '@/lib/auth/password'
-import { createSessionToken } from '@/lib/auth/session'
-import { authConfig, sessionCookieOptions } from '@/lib/auth/config'
+
+function getSecret(): Uint8Array {
+  const key = process.env.SESSION_SECRET ?? 'dev-secret-change-in-production'
+  return new TextEncoder().encode(key)
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,9 +21,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid password' }, { status: 401 })
     }
 
-    const token = await createSessionToken()
+    const token = await new SignJWT({ admin: true })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('24h')
+      .sign(getSecret())
+
     const response = NextResponse.json({ success: true })
-    response.cookies.set(authConfig.cookieName, token, sessionCookieOptions)
+    response.cookies.set('admin_session', token, {
+      httpOnly: true,
+      secure: true,
+      path: '/',
+      maxAge: 60 * 60 * 24,
+      sameSite: 'lax',
+    })
     return response
   } catch {
     return NextResponse.json({ error: 'Login failed' }, { status: 500 })
