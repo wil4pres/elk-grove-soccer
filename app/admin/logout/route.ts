@@ -1,12 +1,12 @@
-import { redirect } from 'next/navigation'
+import { NextResponse } from 'next/server'
 import { AuthService } from '@/lib/auth/service'
 
-export async function GET() {
+export async function POST() {
   try {
     await AuthService.logout()
   } catch (error) {
     console.error('Logout error:', error)
   }
 
-  redirect('/admin/login')
+  return NextResponse.redirect(new URL('/admin/login', 'https://sacramento.soccer'))
 }

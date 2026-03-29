@@ -36,12 +36,14 @@ export function AdminNav() {
             )
           })}
         </div>
-        <Link
-          href="/admin/logout"
-          className="text-white/40 hover:text-white text-xs ml-3 shrink-0 transition-colors"
-        >
-          Sign out
-        </Link>
+        <form action="/admin/logout" method="POST">
+          <button
+            type="submit"
+            className="text-white/40 hover:text-white text-xs ml-3 shrink-0 transition-colors"
+          >
+            Sign out
+          </button>
+        </form>
       </div>
     </nav>
   )
