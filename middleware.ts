@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 const COOKIE_NAME = 'admin_session'
-const PUBLIC_ROUTES = ['/admin/login', '/admin/logout']
+const PUBLIC_ROUTES = ['/admin/login']
 
 async function verifyToken(token: string): Promise<boolean> {
   // JWT has 3 parts: header.payload.signature

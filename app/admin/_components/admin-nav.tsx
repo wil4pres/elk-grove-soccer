@@ -36,14 +36,15 @@ export function AdminNav() {
             )
           })}
         </div>
-        <form action="/admin/logout" method="POST">
-          <button
-            type="submit"
-            className="text-white/40 hover:text-white text-xs ml-3 shrink-0 transition-colors"
-          >
-            Sign out
-          </button>
-        </form>
+        <button
+          onClick={async () => {
+            await fetch('/api/admin/logout', { method: 'POST', credentials: 'same-origin' })
+            window.location.href = '/admin/login'
+          }}
+          className="text-white/40 hover:text-white text-xs ml-3 shrink-0 transition-colors"
+        >
+          Sign out
+        </button>
       </div>
     </nav>
   )

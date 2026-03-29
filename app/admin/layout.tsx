@@ -2,7 +2,7 @@
 import { usePathname } from 'next/navigation'
 import { AdminNav } from './_components/admin-nav'
 
-const NO_NAV_ROUTES = ['/admin/login', '/admin/logout']
+const NO_NAV_ROUTES = ['/admin/login']
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
