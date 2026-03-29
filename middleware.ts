@@ -48,9 +48,7 @@ export async function middleware(req: NextRequest) {
   const valid = await verifyToken(token)
 
   if (!valid) {
-    const res = NextResponse.redirect(new URL('/admin/login', req.url))
-    res.cookies.delete(COOKIE_NAME)
-    return res
+    return NextResponse.redirect(new URL('/admin/login', req.url))
   }
 
   return NextResponse.next()
