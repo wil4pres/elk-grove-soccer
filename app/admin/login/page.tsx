@@ -1,9 +1,38 @@
-import { login } from './actions'
+'use client'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
-type Props = { searchParams: Promise<{ error?: string }> }
+export default function LoginPage() {
+  const router = useRouter()
+  const [error, setError] = useState(false)
+  const [loading, setLoading] = useState(false)
 
-export default async function LoginPage({ searchParams }: Props) {
-  const { error } = await searchParams
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setError(false)
+    setLoading(true)
+
+    const password = (e.currentTarget.elements.namedItem('password') as HTMLInputElement).value
+
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+        credentials: 'same-origin',
+      })
+
+      if (res.ok) {
+        router.push('/admin')
+      } else {
+        setError(true)
+      }
+    } catch {
+      setError(true)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#080d1a] flex items-center justify-center p-4">
@@ -16,7 +45,7 @@ export default async function LoginPage({ searchParams }: Props) {
           <p className="text-white/50 text-sm mt-1">Elk Grove Soccer</p>
         </div>
 
-        <form action={login} className="bg-white/[0.05] border border-white/[0.1] rounded-2xl p-6 flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="bg-white/[0.05] border border-white/[0.1] rounded-2xl p-6 flex flex-col gap-4">
           {error && (
             <p className="text-red-400 text-sm text-center bg-red-400/10 border border-red-400/20 rounded-xl py-2">
               Incorrect password
@@ -37,9 +66,10 @@ export default async function LoginPage({ searchParams }: Props) {
           </div>
           <button
             type="submit"
-            className="w-full bg-gradient-to-r from-[#0080ff] to-[#004ccc] text-white font-semibold rounded-xl py-3 hover:opacity-90 transition-opacity"
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-[#0080ff] to-[#004ccc] text-white font-semibold rounded-xl py-3 hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            Sign in
+            {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
       </div>
