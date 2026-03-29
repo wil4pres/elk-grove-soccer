@@ -299,7 +299,7 @@ test.describe('Admin', () => {
       return
     }
     await page.goto('/admin/fields')
-    await expect(page.getByText('Field Status')).toBeVisible()
+    await expect(page.getByRole('heading', { name: /field status/i })).toBeVisible()
   })
 })
 
