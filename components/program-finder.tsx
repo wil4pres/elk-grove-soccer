@@ -373,15 +373,15 @@ export default function ProgramFinder() {
   const [answers, setAnswers] = useState<Answers>({})
   const [showResult, setShowResult] = useState(false)
 
-  // Restore from localStorage on mount
+  // Restore partial progress from localStorage on mount (never auto-show result)
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) {
         const parsed = JSON.parse(saved) as { answers: Answers; step: number; showResult: boolean }
-        setAnswers(parsed.answers)
-        setCurrentStep(parsed.step)
-        setShowResult(parsed.showResult)
+        setAnswers(parsed.answers ?? {})
+        setCurrentStep(parsed.step ?? 0)
+        // Never auto-restore the result — always start from questions
       }
     } catch { /* ignore */ }
   }, [])
