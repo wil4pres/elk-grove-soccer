@@ -1,8 +1,13 @@
-// Elk Grove, CA coordinates
-const LAT = 38.4088
-const LON = -121.3716
+export const WEATHER_CITIES = [
+  { name: 'Elk Grove', lat: 38.4088, lon: -121.3716 },
+  { name: 'Sacramento', lat: 38.5816, lon: -121.4944 },
+  { name: 'Galt', lat: 38.2538, lon: -121.3002 },
+  { name: 'Rancho Cordova', lat: 38.5891, lon: -121.3027 },
+  { name: 'Rancho Murieta', lat: 38.4941, lon: -121.0922 },
+]
 
 export interface WeatherData {
+  city: string
   tempF: number
   uvIndex: number
   windSpeedMph: number
@@ -50,26 +55,26 @@ function windNote(mph: number): string {
   return 'Strong wind, significant impact'
 }
 
-export async function getWeather(): Promise<WeatherData | null> {
+async function fetchCityWeather(city: { name: string; lat: number; lon: number }): Promise<WeatherData | null> {
   try {
     const url =
       `https://api.open-meteo.com/v1/forecast` +
-      `?latitude=${LAT}&longitude=${LON}` +
+      `?latitude=${city.lat}&longitude=${city.lon}` +
       `&current=temperature_2m,uv_index,wind_speed_10m,wind_direction_10m` +
       `&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FLos_Angeles`
 
-    const res = await fetch(url, { next: { revalidate: 900 } }) // cache 15 min
+    const res = await fetch(url, { next: { revalidate: 900 } })
     if (!res.ok) return null
 
     const json = await res.json()
     const c = json.current
-
     const tempF = Math.round(c.temperature_2m)
     const uv = Math.round(c.uv_index)
     const windMph = Math.round(c.wind_speed_10m)
     const windDir = degreesToCompass(c.wind_direction_10m)
 
     return {
+      city: city.name,
       tempF,
       uvIndex: uv,
       windSpeedMph: windMph,
@@ -82,4 +87,9 @@ export async function getWeather(): Promise<WeatherData | null> {
   } catch {
     return null
   }
+}
+
+export async function getAllCitiesWeather(): Promise<WeatherData[]> {
+  const results = await Promise.all(WEATHER_CITIES.map(fetchCityWeather))
+  return results.filter((r): r is WeatherData => r !== null)
 }
