@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getFields, computeFieldSummary } from '@/lib/data'
 import type { Field, FieldStatus } from '@/lib/fieldStatus'
+import { getWeather } from '@/lib/weather'
 
 export const dynamic = 'force-dynamic'
 
@@ -80,7 +81,7 @@ const faq = [
 ]
 
 export default async function FieldStatusPage() {
-  const fields = await getFields()
+  const [fields, weather] = await Promise.all([getFields(), getWeather()])
   const summary = computeFieldSummary(fields)
   const complexGroups = groupByComplex(fields)
   const complexMeta = getComplexMeta(fields)
@@ -236,17 +237,29 @@ export default async function FieldStatusPage() {
             <h2 className="text-2xl font-bold text-cloud">Today&apos;s conditions</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-            {[
-              { label: 'Temperature', value: '68°F', note: 'Comfortable for play' },
-              { label: 'UV Index', value: '5 · Moderate', note: 'Sunscreen recommended' },
-              { label: 'Wind', value: '8 mph SW', note: 'Light breeze, no impact' },
-            ].map((item) => (
-              <div key={item.label} className="bg-white/[0.05] border border-white/[0.08] rounded-2xl p-4">
-                <p className="text-xs font-semibold uppercase tracking-wider text-cloud/35 mb-1">{item.label}</p>
-                <p className="text-xl font-bold text-cloud leading-tight">{item.value}</p>
-                <p className="text-xs text-cloud/45 mt-1">{item.note}</p>
+            {weather ? (
+              <>
+                <div className="bg-white/[0.05] border border-white/[0.08] rounded-2xl p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-cloud/35 mb-1">Temperature</p>
+                  <p className="text-xl font-bold text-cloud leading-tight">{weather.tempF}°F</p>
+                  <p className="text-xs text-cloud/45 mt-1">{weather.tempNote}</p>
+                </div>
+                <div className="bg-white/[0.05] border border-white/[0.08] rounded-2xl p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-cloud/35 mb-1">UV Index</p>
+                  <p className="text-xl font-bold text-cloud leading-tight">{weather.uvIndex} · {weather.uvLabel}</p>
+                  <p className="text-xs text-cloud/45 mt-1">{weather.uvNote}</p>
+                </div>
+                <div className="bg-white/[0.05] border border-white/[0.08] rounded-2xl p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-cloud/35 mb-1">Wind</p>
+                  <p className="text-xl font-bold text-cloud leading-tight">{weather.windSpeedMph} mph {weather.windDirection}</p>
+                  <p className="text-xs text-cloud/45 mt-1">{weather.windNote}</p>
+                </div>
+              </>
+            ) : (
+              <div className="sm:col-span-3 bg-white/[0.05] border border-white/[0.08] rounded-2xl p-4 text-center">
+                <p className="text-sm text-cloud/45">Weather data unavailable — check back shortly.</p>
               </div>
-            ))}
+            )}
           </div>
           <div className="bg-white/[0.04] border border-white/[0.07] rounded-3xl p-6">
             <h3 className="text-base font-bold text-cloud mb-3">Rainout &amp; lightning policy</h3>
