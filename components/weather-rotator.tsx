@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import type { WeatherData } from '@/lib/weather'
 
-const INTERVAL_MS = 15000
+const INTERVAL_MS = 6000
 
 export function WeatherRotator({ cities }: { cities: WeatherData[] }) {
   const [index, setIndex] = useState(0)
