@@ -1,10 +1,7 @@
-const CACHE_NAME = 'egs-v1'
-const PRECACHE = ['/', '/programs', '/field-status', '/maps', '/register']
+const CACHE_NAME = 'egs-v2'
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE))
-  )
+  // No precaching — pages are cached on first real visit, not upfront
   self.skipWaiting()
 })
 
@@ -18,20 +15,45 @@ self.addEventListener('activate', (event) => {
 })
 
 self.addEventListener('fetch', (event) => {
-  // Network-first for API and dynamic pages, cache-first for static assets
   const url = new URL(event.request.url)
 
-  if (url.pathname.startsWith('/api/') || event.request.method !== 'GET') {
-    return // Let network handle API calls and non-GET requests
+  // Skip: API calls, non-GET, cross-origin requests
+  if (
+    url.pathname.startsWith('/api/') ||
+    event.request.method !== 'GET' ||
+    url.origin !== self.location.origin
+  ) {
+    return
   }
 
+  // Static assets (JS, CSS, images, fonts) — cache-first, no network hit if cached
+  if (
+    url.pathname.startsWith('/_next/static/') ||
+    url.pathname.match(/\.(png|jpg|jpeg|svg|ico|woff2?|webp)$/)
+  ) {
+    event.respondWith(
+      caches.match(event.request).then(
+        (cached) =>
+          cached ||
+          fetch(event.request).then((response) => {
+            const clone = response.clone()
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
+            return response
+          })
+      )
+    )
+    return
+  }
+
+  // Pages — network-first with a short timeout, fall back to cache
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
+    Promise.race([
+      fetch(event.request).then((response) => {
         const clone = response.clone()
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
         return response
-      })
-      .catch(() => caches.match(event.request))
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+    ]).catch(() => caches.match(event.request))
   )
 })
