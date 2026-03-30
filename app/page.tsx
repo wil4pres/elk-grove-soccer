@@ -9,6 +9,7 @@ import GameDayCard from '@/components/game-day-card'
 import SponsorStrip from '@/components/sponsor-strip'
 import { getPrograms, getAlumni } from '@/lib/data'
 import { getSchedule, filterCurrentAndFuture } from '@/lib/schedule'
+import { getElkGroveWeather } from '@/lib/weather'
 
 export const dynamic = 'force-dynamic'
 
@@ -147,8 +148,26 @@ function formatMatchDate(iso: string): string {
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
+const thermometerIcon = (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+    <path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z" />
+  </svg>
+)
+const windIcon = (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+    <path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2" />
+    <path d="M9.6 4.6A2 2 0 1 1 11 8H2" />
+    <path d="M12.6 19.4A2 2 0 1 0 14 16H2" />
+  </svg>
+)
+
 export default async function HomePage() {
-  const [allPrograms, alumni, matches] = await Promise.all([getPrograms(), getAlumni(), getSchedule()])
+  const [allPrograms, alumni, matches, elkWeather] = await Promise.all([
+    getPrograms(),
+    getAlumni(),
+    getSchedule(),
+    getElkGroveWeather(),
+  ])
   const openPrograms = allPrograms.filter((p) => p.registrationStatus === 'open').slice(0, 3)
 
   // Build live schedule card — only current/future matches
@@ -174,9 +193,32 @@ export default async function HomePage() {
         { icon: chatIcon, label: 'Full schedule', value: 'Check Maps & Schedules for updates' },
       ]
 
-  const allGameDayCards = gameDayCards.map(c =>
-    '_isSchedule' in c ? { ...c, items: scheduleItems } : c
-  )
+  const liveWeatherItems = elkWeather
+    ? [
+        {
+          icon: thermometerIcon,
+          label: 'Elk Grove now',
+          value: `${elkWeather.conditionLabel} · ${elkWeather.tempF}°F — ${elkWeather.tempNote}`,
+        },
+        {
+          icon: windIcon,
+          label: 'Wind & UV',
+          value: `${elkWeather.windSpeedMph} mph ${elkWeather.windDirection} · UV ${elkWeather.uvIndex} (${elkWeather.uvLabel}) — ${elkWeather.windNote}; ${elkWeather.uvNote}`,
+        },
+      ]
+    : [
+        {
+          icon: thermometerIcon,
+          label: 'Live conditions',
+          value: 'Weather unavailable — open Field Status for multi-city conditions and club alerts.',
+        },
+      ]
+
+  const allGameDayCards = gameDayCards.map((c) => {
+    if ('_isSchedule' in c) return { ...c, items: scheduleItems }
+    if (c.title === 'Weather & Rainout') return { ...c, items: [...liveWeatherItems, ...c.items] }
+    return c
+  })
   return (
     <>
       <FieldStatusBanner />

@@ -12,10 +12,24 @@ export interface WeatherData {
   uvIndex: number
   windSpeedMph: number
   windDirection: string
+  conditionLabel: string
   tempNote: string
   uvNote: string
   windNote: string
   uvLabel: string
+}
+
+function wmoWeatherLabel(code: number): string {
+  if (code === 0) return 'Clear'
+  if (code >= 1 && code <= 3) return 'Partly cloudy'
+  if (code >= 45 && code <= 48) return 'Foggy'
+  if (code >= 51 && code <= 57) return 'Drizzle'
+  if (code >= 61 && code <= 67) return 'Rain'
+  if (code >= 71 && code <= 77) return 'Snow'
+  if (code >= 80 && code <= 82) return 'Rain showers'
+  if (code >= 85 && code <= 86) return 'Snow showers'
+  if (code >= 95 && code <= 99) return 'Thunderstorm'
+  return 'Mixed conditions'
 }
 
 function degreesToCompass(deg: number): string {
@@ -60,7 +74,7 @@ async function fetchCityWeather(city: { name: string; lat: number; lon: number }
     const url =
       `https://api.open-meteo.com/v1/forecast` +
       `?latitude=${city.lat}&longitude=${city.lon}` +
-      `&current=temperature_2m,uv_index,wind_speed_10m,wind_direction_10m` +
+      `&current=temperature_2m,uv_index,wind_speed_10m,wind_direction_10m,weather_code` +
       `&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FLos_Angeles`
 
     const res = await fetch(url, { next: { revalidate: 900 } })
@@ -72,6 +86,7 @@ async function fetchCityWeather(city: { name: string; lat: number; lon: number }
     const uv = Math.round(c.uv_index)
     const windMph = Math.round(c.wind_speed_10m)
     const windDir = degreesToCompass(c.wind_direction_10m)
+    const code = typeof c.weather_code === 'number' ? c.weather_code : 0
 
     return {
       city: city.name,
@@ -79,6 +94,7 @@ async function fetchCityWeather(city: { name: string; lat: number; lon: number }
       uvIndex: uv,
       windSpeedMph: windMph,
       windDirection: windDir,
+      conditionLabel: wmoWeatherLabel(code),
       tempNote: tempNote(tempF),
       uvLabel: uvLabel(uv),
       uvNote: uvNote(uv),
@@ -92,4 +108,9 @@ async function fetchCityWeather(city: { name: string; lat: number; lon: number }
 export async function getAllCitiesWeather(): Promise<WeatherData[]> {
   const results = await Promise.all(WEATHER_CITIES.map(fetchCityWeather))
   return results.filter((r): r is WeatherData => r !== null)
+}
+
+/** Elk Grove — primary club area; used on home game-day card. */
+export async function getElkGroveWeather(): Promise<WeatherData | null> {
+  return fetchCityWeather(WEATHER_CITIES[0])
 }
