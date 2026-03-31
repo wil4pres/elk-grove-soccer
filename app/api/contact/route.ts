@@ -14,7 +14,8 @@ async function verifyTurnstile(token: string, ip: string): Promise<boolean> {
       remoteip: ip,
     }),
   })
-  const data = await res.json() as { success: boolean }
+  const data = await res.json() as { success: boolean; 'error-codes'?: string[] }
+  console.log('[turnstile]', JSON.stringify(data))
   return data.success === true
 }
 
