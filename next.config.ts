@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
     ADMIN_PASSWORD: process.env.ADMIN_PASSWORD ?? '',
     SESSION_SECRET: process.env.SESSION_SECRET ?? '',
     ADMIN_API_KEY: process.env.ADMIN_API_KEY ?? '',
+    TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY ?? '',
+    RESEND_API_KEY: process.env.RESEND_API_KEY ?? '',
   },
 };
 
