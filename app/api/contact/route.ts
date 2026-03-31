@@ -4,7 +4,7 @@ import { Resend } from 'resend'
 const TURNSTILE_SECRET = process.env.TURNSTILE_SECRET_KEY ?? ''
 const TO_EMAIL = 'info@elkgrovesoccer.com'
 
-async function verifyTurnstile(token: string, ip: string): Promise<boolean> {
+async function verifyTurnstile(token: string, ip: string): Promise<{ success: boolean; errorCodes?: string[] }> {
   const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -15,8 +15,7 @@ async function verifyTurnstile(token: string, ip: string): Promise<boolean> {
     }),
   })
   const data = await res.json() as { success: boolean; 'error-codes'?: string[] }
-  console.log('[turnstile]', JSON.stringify(data))
-  return data.success === true
+  return { success: data.success === true, errorCodes: data['error-codes'] }
 }
 
 export async function POST(req: NextRequest) {
@@ -43,9 +42,9 @@ export async function POST(req: NextRequest) {
     }
 
     const ip = req.headers.get('cf-connecting-ip') ?? req.headers.get('x-forwarded-for') ?? '0.0.0.0'
-    const valid = await verifyTurnstile(turnstileToken, ip)
-    if (!valid) {
-      return NextResponse.json({ error: 'Security check failed. Please try again.' }, { status: 400 })
+    const { success, errorCodes } = await verifyTurnstile(turnstileToken, ip)
+    if (!success) {
+      return NextResponse.json({ error: `Security check failed: ${(errorCodes ?? []).join(', ')}` }, { status: 400 })
     }
 
     const resend = new Resend(process.env.RESEND_API_KEY)
