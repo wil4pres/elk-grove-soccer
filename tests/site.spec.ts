@@ -245,6 +245,116 @@ test.describe('Register Page', () => {
   })
 })
 
+// ─── Contact Page ────────────────────────────────────────────
+test.describe('Contact Page', () => {
+  test('loads with hero heading', async ({ page }) => {
+    await page.goto('/contact')
+    await expect(page.locator('h1')).toContainText('Get in touch')
+  })
+
+  test('contact info cards are visible', async ({ page }) => {
+    await page.goto('/contact')
+    await expect(page.getByText('info@elkgrovesoccer.com')).toBeVisible()
+    await expect(page.getByText('(916) 555-0180')).toBeVisible()
+    await expect(page.getByText('Elk Grove, CA')).toBeVisible()
+  })
+
+  test('office hours section is visible', async ({ page }) => {
+    await page.goto('/contact')
+    await expect(page.getByText('Office hours')).toBeVisible()
+    await expect(page.getByText('Monday – Friday')).toBeVisible()
+  })
+
+  test('all form fields are present', async ({ page }) => {
+    await page.goto('/contact')
+    await expect(page.locator('input#name')).toBeVisible()
+    await expect(page.locator('input#email')).toBeVisible()
+    await expect(page.locator('input#phone')).toBeVisible()
+    await expect(page.locator('select#topic')).toBeVisible()
+    await expect(page.locator('textarea#message')).toBeVisible()
+    await expect(page.getByRole('button', { name: /send message/i })).toBeVisible()
+  })
+
+  test('topic dropdown has expected options', async ({ page }) => {
+    await page.goto('/contact')
+    const select = page.locator('select#topic')
+    await expect(select).toBeVisible()
+    const options = await select.locator('option').allTextContents()
+    expect(options).toContain('General Inquiry')
+    expect(options).toContain('Registration Help')
+    expect(options).toContain('Volunteering')
+    expect(options).toContain('Sponsorship / Partnership')
+  })
+
+  test('Cloudflare Turnstile widget renders', async ({ page }) => {
+    await page.goto('/contact')
+    // Turnstile injects an iframe — wait for it
+    await page.waitForTimeout(2000)
+    const turnstileFrame = page.frameLocator('iframe[src*="cloudflare"]').first()
+    const widgetArea = page.locator('div').filter({ has: page.locator('iframe[src*="cloudflare"]') }).first()
+    const hasTurnstile = await widgetArea.isVisible().catch(() => false)
+    const hasIframe = (await page.locator('iframe[src*="challenges.cloudflare.com"]').count()) > 0
+    expect(hasTurnstile || hasIframe || (await turnstileFrame.locator('body').isVisible().catch(() => false))).toBeTruthy()
+  })
+
+  test('form fills correctly with test user info', async ({ page }) => {
+    await page.goto('/contact')
+    await page.fill('input#name', 'William Newsom')
+    await page.fill('input#email', 'test@4psp.com')
+    await page.fill('input#phone', '(916) 555-0100')
+    await page.selectOption('select#topic', 'General Inquiry')
+    await page.fill('textarea#message', 'This is an automated test submission. Please disregard.')
+
+    // Verify values were entered correctly
+    await expect(page.locator('input#name')).toHaveValue('William Newsom')
+    await expect(page.locator('input#email')).toHaveValue('test@4psp.com')
+    await expect(page.locator('select#topic')).toHaveValue('General Inquiry')
+    await expect(page.locator('textarea#message')).toHaveValue('This is an automated test submission. Please disregard.')
+  })
+
+  test('submit without Turnstile shows security check error', async ({ page }) => {
+    await page.goto('/contact')
+    await page.fill('input#name', 'William Newsom')
+    await page.fill('input#email', 'test@4psp.com')
+    await page.selectOption('select#topic', 'General Inquiry')
+    await page.fill('textarea#message', 'Test message')
+
+    // Click submit before Turnstile can complete (page just loaded)
+    // In headless/bot context Turnstile will not issue a token
+    await page.click('button[type="submit"]')
+    await page.waitForTimeout(1000)
+
+    // Should show either security check error or still be on the form (not success state)
+    const isSuccess = await page.getByText('Message sent!').isVisible().catch(() => false)
+    expect(isSuccess).toBeFalsy()
+  })
+
+  test('quick links section present at bottom', async ({ page }) => {
+    await page.goto('/contact')
+    await expect(page.getByText('Common questions')).toBeVisible()
+    await expect(page.locator('a[href="/field-status"]').last()).toBeVisible()
+    await expect(page.locator('a[href="/programs"]').last()).toBeVisible()
+    await expect(page.locator('a[href="/register"]').last()).toBeVisible()
+  })
+
+  test('mobile layout renders correctly', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto('/contact')
+    await expect(page.locator('h1')).toBeVisible()
+    await expect(page.locator('input#name')).toBeVisible()
+    await expect(page.getByRole('button', { name: /send message/i })).toBeVisible()
+  })
+
+  test('contact page linked from footer', async ({ page }) => {
+    await page.goto('/')
+    const footerLink = page.locator('footer a[href="/contact"]')
+    await expect(footerLink).toBeVisible()
+    await footerLink.click()
+    await expect(page).toHaveURL(/\/contact/)
+    await expect(page.locator('h1')).toContainText('Get in touch')
+  })
+})
+
 // ─── Admin Login ─────────────────────────────────────────────
 test.describe('Admin', () => {
   test('login page loads', async ({ page }) => {
