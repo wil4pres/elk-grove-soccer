@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 
-const TURNSTILE_SECRET = process.env.TURNSTILE_SECRET_KEY ?? ''
 const TO_EMAIL = 'info@elkgrovesoccer.com'
 
 async function verifyTurnstile(token: string, ip: string): Promise<{ success: boolean; errorCodes?: string[] }> {
+  const secret = process.env.TURNSTILE_SECRET_KEY ?? ''
   const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      secret: TURNSTILE_SECRET,
+      secret,
       response: token,
       remoteip: ip,
     }),
