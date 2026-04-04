@@ -552,16 +552,47 @@ The system escalates to coordinator review (instead of auto-assigning) when:
 - Special request references a coach or friend that the scoring engine couldn't resolve with confidence
 - SportsEngine write fails after retries
 
-### Data Model — Key DynamoDB Tables (Future State)
+### Data Model — Complete DynamoDB Table Set (Future State)
+
+**Existing tables — unchanged:**
 
 | Table | Purpose |
 | ----- | ------- |
-| `egs-registrations` | Ingested registration events from SportsEngine webhooks |
-| `egs-assignments` | Current assignment state per player per season — team, score, status, SportsEngine write result |
-| `egs-audit` | Immutable log of every decision — inputs, scores, rule version, outcome, actor |
-| `egs-teams` | Team records synced from SportsEngine — capacity, coach, practice field, birth year, gender |
-| `egs-overrides` | Coordinator manual overrides — original suggestion, override value, justification, timestamp |
-| `egs-notifications` | Email log — recipient, template, send time, SES message ID, delivery status |
+| `egs-fields` | Field status — open/delay/closed, managed via admin |
+| `egs-programs` | Program catalog — pricing, capacity, registration status |
+| `egs-sponsors` | Sponsor records |
+| `egs-alumni` | Alumni stories |
+| `egs-staff` | Staff profiles |
+
+**New platform tables — additive, nothing existing breaks:**
+
+| Table | Purpose |
+| ----- | ------- |
+| `egs-webhook-events` | Idempotency log — every SE webhook event ID recorded on arrival, prevents duplicate processing |
+| `egs-se-registrations` | Raw registration events ingested from SE webhooks — one record per registrationResult, archived payload |
+| `egs-se-teams` | Teams synced from SportsEngine — coach, practice field, birth year, gender, lat/long, max capacity, current enrollment counter |
+| `egs-assignments` | Assignment state per player per season — scoring inputs, score breakdown, rule version, assigned team, SE write result, status (pending/assigned/exception/overridden) |
+| `egs-audit` | Immutable append-only log — every decision event: scoring run, assignment write, override, re-assignment, email sent, parent reply received |
+| `egs-overrides` | Coordinator manual overrides — original suggestion, new team, justification text, coordinator ID, timestamp |
+| `egs-notifications` | Outbound email log — recipient, template used, send time, SES message ID, delivery status |
+| `egs-inbound-messages` | Parent email replies and responses — linked to player, assignment, and original notification |
+| `egs-oauth-tokens` | SportsEngine OAuth tokens per admin user — access token, refresh token, expiry, scope |
+| `egs-capacity` | Real-time enrollment counters per team per season — atomic increments/decrements as assignments are written or reversed |
+
+**Lat/long schema (on `egs-se-teams` and carried into `egs-assignments`):**
+
+```typescript
+{
+  practiceFieldId: string       // SE venue ID
+  practiceFieldName: string
+  practiceFieldLat: number      // decimal degrees
+  practiceFieldLon: number      // decimal degrees
+  // player proximity stored at scoring time:
+  playerLat: number
+  playerLon: number
+  distanceMiles: number         // road-network distance, not straight-line
+}
+```
 
 ---
 
