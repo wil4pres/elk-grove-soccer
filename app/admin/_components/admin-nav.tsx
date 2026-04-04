@@ -10,6 +10,9 @@ const navItems = [
   { href: '/admin/alumni', label: 'Alumni' },
   { href: '/admin/staff', label: 'Staff' },
   { href: '/admin/matching', label: 'Matching' },
+  { href: '/admin/assignments', label: 'Assignments' },
+  { href: '/admin/emails', label: 'Emails' },
+  { href: '/admin/inbox', label: 'Inbox' },
 ]
 
 export function AdminNav() {
