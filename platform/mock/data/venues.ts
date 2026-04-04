@@ -1,0 +1,88 @@
+import type { SEVenue } from '../../types/sportsengine.js'
+
+export const venues: SEVenue[] = [
+  {
+    id: 'venue-bartholomew',
+    organizationId: 'org-egs-001',
+    name: 'Bartholomew Sports Complex',
+    address: {
+      street1: '9750 Bartholomew Drive',
+      city: 'Elk Grove',
+      state: 'CA',
+      zip: '95624',
+      country: 'US',
+      lat: 38.4051,
+      lon: -121.3698,
+    },
+    subvenues: [
+      { id: 'venue-bartholomew-f1', venueId: 'venue-bartholomew', name: 'Field 1', surface: 'grass' },
+      { id: 'venue-bartholomew-f2', venueId: 'venue-bartholomew', name: 'Field 2', surface: 'grass' },
+      { id: 'venue-bartholomew-f3', venueId: 'venue-bartholomew', name: 'Field 3', surface: 'turf' },
+    ],
+    status: 'active',
+    createdAt: '2020-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'venue-laguna',
+    organizationId: 'org-egs-001',
+    name: 'Laguna Community Park',
+    address: {
+      street1: '9608 Vicino Drive',
+      city: 'Elk Grove',
+      state: 'CA',
+      zip: '95758',
+      country: 'US',
+      lat: 38.3978,
+      lon: -121.4412,
+    },
+    subvenues: [
+      { id: 'venue-laguna-f1', venueId: 'venue-laguna', name: 'Field A', surface: 'grass' },
+      { id: 'venue-laguna-f2', venueId: 'venue-laguna', name: 'Field B', surface: 'grass' },
+    ],
+    status: 'active',
+    createdAt: '2020-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'venue-morse',
+    organizationId: 'org-egs-001',
+    name: 'Morse Park',
+    address: {
+      street1: '8901 Elk Grove Boulevard',
+      city: 'Elk Grove',
+      state: 'CA',
+      zip: '95624',
+      country: 'US',
+      lat: 38.4162,
+      lon: -121.3827,
+    },
+    subvenues: [
+      { id: 'venue-morse-f1', venueId: 'venue-morse', name: 'Main Field', surface: 'grass' },
+    ],
+    status: 'active',
+    createdAt: '2020-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'venue-heritage',
+    organizationId: 'org-egs-001',
+    name: 'Heritage Park',
+    address: {
+      street1: '3000 Kilgore Road',
+      city: 'Rancho Cordova',
+      state: 'CA',
+      zip: '95670',
+      country: 'US',
+      lat: 38.5712,
+      lon: -121.2934,
+    },
+    subvenues: [
+      { id: 'venue-heritage-f1', venueId: 'venue-heritage', name: 'Field 1', surface: 'grass' },
+      { id: 'venue-heritage-f2', venueId: 'venue-heritage', name: 'Field 2', surface: 'grass' },
+    ],
+    status: 'active',
+    createdAt: '2020-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+  },
+]
