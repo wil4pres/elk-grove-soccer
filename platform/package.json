@@ -1,0 +1,27 @@
+{
+  "name": "egs-platform",
+  "version": "0.1.0",
+  "description": "EGS assignment engine, mock SportsEngine provider, and workflow layer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "webhook:registration-create": "npx tsx mock/webhooks/registrationResult-create.ts",
+    "webhook:registration-update": "npx tsx mock/webhooks/registrationResult-update.ts",
+    "webhook:team-update": "npx tsx mock/webhooks/team-update.ts",
+    "webhook:event-update": "npx tsx mock/webhooks/event-update.ts",
+    "score": "npx tsx engine/scoring.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.82.0",
+    "@aws-sdk/client-dynamodb": "^3.1019.0",
+    "@aws-sdk/client-ses": "^3.1019.0",
+    "@aws-sdk/client-sqs": "^3.1019.0",
+    "@aws-sdk/lib-dynamodb": "^3.1019.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.2",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
