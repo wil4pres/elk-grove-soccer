@@ -44,3 +44,4 @@ next-env.d.ts
 matching/*.db
 matching/*.csv
 matching/*.html
+!matching/report.html

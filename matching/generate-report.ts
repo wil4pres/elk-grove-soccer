@@ -35,6 +35,7 @@ interface Team {
   name: string
   coach: string
   birth_year: number
+  practice_field: string
 }
 
 interface Suggestion {
@@ -77,7 +78,8 @@ function getTeams(pkg: string): Team[] {
   const uAge     = 2026 - parseInt(year)
   // Two naming conventions: "2016G Butterflies (Bravo)" and "Elk Grove Soccer U16G Firestorm (Costa)"
   return db.prepare(`
-    SELECT t.id, t.name, COALESCE(t.coach,'') as coach, COALESCE(t.birth_year, 0) as birth_year
+    SELECT t.id, t.name, COALESCE(t.coach,'') as coach, COALESCE(t.birth_year, 0) as birth_year,
+           COALESCE(t.practice_field,'') as practice_field
     FROM teams t
     WHERE t.name LIKE ? OR t.name LIKE ? OR t.name LIKE ?
     GROUP BY t.name
@@ -106,6 +108,34 @@ function getCoachesForTeam(teamName: string): { first: string; last: string; rol
     SELECT first_name as first, last_name as last, role
     FROM coaches WHERE team_name = ? COLLATE NOCASE
   `).all(teamName) as any[]
+}
+
+// Returns the distance rank (1 = closest) of a given field for a player.
+// Returns null if distance data isn't available (geocoding not yet run).
+const proximityRankCache = new Map<string, number | null>()
+function getFieldProximityRank(playerId: number, fieldName: string): number | null {
+  if (!fieldName) return null
+  const cacheKey = `${playerId}:${fieldName}`
+  if (proximityRankCache.has(cacheKey)) return proximityRankCache.get(cacheKey)!
+
+  try {
+    const row = db.prepare(`
+      SELECT ranked.rank FROM (
+        SELECT field_name,
+               ROW_NUMBER() OVER (ORDER BY drive_meters ASC) AS rank
+        FROM field_distances
+        WHERE player_id = ?
+      ) AS ranked
+      WHERE ranked.field_name = ?
+    `).get(playerId, fieldName) as { rank: number } | undefined
+
+    const result = row?.rank ?? null
+    proximityRankCache.set(cacheKey, result)
+    return result
+  } catch {
+    // field_distances table doesn't exist yet — distances not calculated
+    return null
+  }
 }
 
 // Normalize for fuzzy matching: lowercase, strip apostrophes/hyphens/dots
@@ -189,6 +219,19 @@ function score(player: Player, team: Team, allPlayers: Player[]): Suggestion {
   if (siblingTeams.includes(team.name)) {
     total += 2
     reasons.push('Sibling on this team')
+  }
+
+  // +2/+1 closest practice field — road-network distance, acts as tiebreaker
+  // before school when no stronger signals match (age+gender already guaranteed)
+  if (team.practice_field) {
+    const rank = getFieldProximityRank(player.id, team.practice_field)
+    if (rank === 1) {
+      total += 2
+      reasons.push(`Closest field: ${team.practice_field}`)
+    } else if (rank === 2) {
+      total += 1
+      reasons.push(`2nd closest field: ${team.practice_field}`)
+    }
   }
 
   // +1 same school (check if any team player shares school keyword)

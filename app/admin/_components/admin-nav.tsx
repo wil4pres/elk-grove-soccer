@@ -9,6 +9,7 @@ const navItems = [
   { href: '/admin/sponsors', label: 'Sponsors' },
   { href: '/admin/alumni', label: 'Alumni' },
   { href: '/admin/staff', label: 'Staff' },
+  { href: '/admin/matching', label: 'Matching' },
 ]
 
 export function AdminNav() {
