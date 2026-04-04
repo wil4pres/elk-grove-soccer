@@ -38,6 +38,13 @@ const sections = [
     accent: 'bg-teal-500',
     emoji: '👤',
   },
+  {
+    href: '/admin/matching',
+    title: 'Team Matching',
+    description: 'Player-to-team assignment suggestions with proximity, requests, and siblings.',
+    accent: 'bg-red-500',
+    emoji: '🗂️',
+  },
 ]
 
 export default function AdminDashboard() {

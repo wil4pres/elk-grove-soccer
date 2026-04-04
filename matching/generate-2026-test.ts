@@ -37,18 +37,19 @@ interface Player2026 {
   new_or_returning: string
   // previous season data
   prev_team: string
+  prev_field: string
   prev_season: string
 }
 
-interface Team { id: number; name: string; coach: string; birth_year: number }
-interface Suggestion { team: string; score: number; reasons: string[] }
+interface Team { id: number; name: string; coach: string; birth_year: number; practice_field: string }
+interface Suggestion { team: string; score: number; reasons: string[]; practice_field: string }
 interface Extraction { coaches: string[]; friends: string[]; teams: string[] }
 
 // ─── data ────────────────────────────────────────────────────────────────────
 
 const season2026id = (db.prepare(`SELECT id FROM seasons WHERE name = 'Fall Recreation 2026'`).get() as any).id
-const season2025id = (db.prepare(`SELECT id FROM seasons WHERE name LIKE '%2025%' ORDER BY id DESC LIMIT 1`).get() as any)?.id
-const season2024id = (db.prepare(`SELECT id FROM seasons WHERE name LIKE '%2024%' ORDER BY id DESC LIMIT 1`).get() as any)?.id
+const season2025id = (db.prepare(`SELECT id FROM seasons WHERE name = '2025 Fall Recreation'`).get() as any)?.id
+const season2024id = (db.prepare(`SELECT id FROM seasons WHERE name = 'Fall Recreation 2024'`).get() as any)?.id
 
 const players: Player2026[] = db.prepare(`
   SELECT p.id, p.first_name, p.last_name, p.gender, p.birth_date,
@@ -56,6 +57,7 @@ const players: Player2026[] = db.prepare(`
          p.account_email, p.zip,
          r.package_name, r.school_and_grade, r.special_request, r.new_or_returning,
          COALESCE(t25.name, t24.name, '') as prev_team,
+         COALESCE(t25.practice_field, '') as prev_field,
          CASE WHEN t25.name IS NOT NULL THEN '2025 Fall Recreation'
               WHEN t24.name IS NOT NULL THEN 'Fall Recreation 2024'
               ELSE '' END as prev_season
@@ -88,7 +90,7 @@ function getTeams(birthYear: number, gender: string): Team[] {
   //   "2010G Fireballs (Coach)"       → birth-year prefix
   //   "Elk Grove Soccer U16G Firestorm (Costa)" → U-age prefix
   return db.prepare(`
-    SELECT id, name, COALESCE(coach,'') as coach, COALESCE(birth_year,0) as birth_year
+    SELECT id, name, COALESCE(coach,'') as coach, COALESCE(birth_year,0) as birth_year, COALESCE(practice_field,'') as practice_field
     FROM teams
     WHERE name LIKE ? OR name LIKE ? OR name LIKE ?
     GROUP BY name ORDER BY name
@@ -253,7 +255,7 @@ function score(player: Player2026, team: Team, allPlayers: Player2026[]): Sugges
     if (schoolMatch) { total += 1; reasons.push('Same school as teammate') }
   }
 
-  return { team: team.name, score: total, reasons }
+  return { team: team.name, score: total, reasons, practice_field: team.practice_field || '' }
 }
 
 function getSuggestions(player: Player2026, teams: Team[]): Suggestion[] {
@@ -298,7 +300,7 @@ function getSuggestions(player: Player2026, teams: Team[]): Suggestion[] {
     if (existing) {
       existing.reasons.push(`${sm.first_name} ${sm.last_name} (same school)`)
     } else {
-      schoolmateSuggestions.push({ team: sm.prev_team, score: 1, reasons: [`${sm.first_name} ${sm.last_name} attends same school`] })
+      schoolmateSuggestions.push({ team: sm.prev_team, score: 1, reasons: [`${sm.first_name} ${sm.last_name} attends same school`], practice_field: '' })
     }
   }
 
@@ -377,34 +379,45 @@ function recommend(player: Player2026, suggestions: Suggestion[]): { text: strin
   const hasReq = req && !['n/a','na','none','-'].includes(req.toLowerCase())
   const isNew = (player.new_or_returning || '').toLowerCase().includes('new')
   const top = suggestions[0]
+
+  // 🚨 BLOCKER - needs manual intervention
   if (!suggestions.length) {
-    if (isNew && !hasReq) return { level: 'orange', text: 'New player, no request — assign by availability.' }
-    if (hasReq) {
-      const groupHint = getMutualGroupHint(player)
-      if (groupHint) return { level: 'yellow', text: groupHint }
-      const globalHint = getGlobalHint(player)
-      return { level: 'red', text: globalHint || `Request "${req}" — no team match found. Manual lookup needed.` }
-    }
-    return { level: 'orange', text: 'No match. Place manually.' }
+    // ℹ️ INFO - new player, no request, no match = just assign by availability
+    if (!hasReq) return { level: 'gray', text: 'New player, no request — assign by availability.' }
+    
+    // If we have a mutual group hint (siblings/family), that's a clear action, not a blocker
+    const groupHint = getMutualGroupHint(player)
+    if (groupHint) return { level: 'green', text: groupHint.replace('Place with', '✅ Place with') }
+    
+    const globalHint = getGlobalHint(player)
+    return { level: 'red', text: globalHint || `Request "${req}" — no team match found. Manual lookup needed.` }
   }
+
   const r = top.reasons
-  if (r.some(x => x.includes('Playing up')))
-    return { level: 'yellow', text: `Previously on ${top.team} but age group differs — coordinator verify if playing up again.` }
-  if (r.some(x => x.includes('Returning')) && top.score >= 5)
+  const isPlayingUp = r.some(x => x.includes('Playing up'))
+
+  // ✅ DO THIS - solid match
+  if (r.some(x => x.includes('Returning')) && top.score >= 5 && !isPlayingUp)
     return { level: 'green', text: `Return to ${top.team}. Same team as last year${r.some(x=>x.includes('coach'))?', confirmed by coach request':''}.` }
-  if (r.some(x => x.includes('coach')) && top.score >= 5)
+  if (r.some(x => x.includes('coach')) && top.score >= 5 && !isPlayingUp)
     return { level: 'green', text: `Assign to ${top.team}. Coach explicitly requested.` }
-  if (r.some(x => x.includes('Mutual')) && top.score >= 5)
+  if (r.some(x => x.includes('Mutual')) && top.score >= 5 && !isPlayingUp)
     return { level: 'green', text: `Place on ${top.team} — mutual friend group match.` }
   if (r.some(x => x.includes('Sibling')))
     return { level: 'green', text: `Assign to ${top.team} — sibling already on this team.` }
-  if (isNew && r.some(x => x.includes('coach')))
+  if (isNew && r.some(x => x.includes('coach')) && !isPlayingUp)
     return { level: 'green', text: `New player — assign to ${top.team} per coach request.` }
+
+  // ⚠️ REVIEW - coordinator decision needed
+  if (isPlayingUp)
+    return { level: 'orange', text: `Previously on ${top.team} but age group differs — coordinator verify if playing up again.` }
   if (top.score >= 3)
-    return { level: 'yellow', text: `Consider ${top.team} (score ${top.score}/10). Verify before confirming.` }
+    return { level: 'orange', text: `Consider ${top.team} (score ${top.score}/10). Verify before confirming.` }
+
+  // ℹ️ INFO - weak match, just informational
   if (r.some(x => x.toLowerCase().includes('school')))
-    return { level: 'orange', text: `No direct match — schoolmate(s) were on ${top.team}. Consider placing together.` }
-  return { level: 'orange', text: `Weak match (score ${top.score}/10). Coordinator review needed.` }
+    return { level: 'gray', text: `No direct match — schoolmate(s) were on ${top.team}. Consider placing together.` }
+  return { level: 'gray', text: `Weak match (score ${top.score}/10). Place by availability.` }
 }
 
 // ─── HTML ─────────────────────────────────────────────────────────────────────
@@ -415,12 +428,19 @@ function scoreBar(s: number): string {
   return `<div class="bar-bg"><div class="bar" style="width:${pct}%;background:${col}"></div></div>`
 }
 
-// Sort by top score desc
+const levelOrder: Record<string, number> = { red: 1, orange: 2, green: 3, gray: 4 }
+
 const sorted = players.map(p => {
   const teams = getTeams(inferBirthYear(p), p.gender)
   const sugs  = getSuggestions(p, teams)
   return { p, sugs, rec: recommend(p, sugs) }
-}).sort((a, b) => (b.sugs[0]?.score ?? -1) - (a.sugs[0]?.score ?? -1))
+}).sort((a, b) => {
+  // First sort by action priority: blocker → review → do this → info
+  const levelDiff = levelOrder[a.rec.level] - levelOrder[b.rec.level]
+  if (levelDiff !== 0) return levelDiff
+  // Then by score (highest first)
+  return (b.sugs[0]?.score ?? 0) - (a.sugs[0]?.score ?? 0)
+})
 
 const rows = sorted.map(({ p, sugs, rec }) => {
   const hasReq = p.special_request && !['n/a','na','none','-',''].includes(p.special_request.toLowerCase().trim())
@@ -431,15 +451,16 @@ const rows = sorted.map(({ p, sugs, rec }) => {
       <div class="sug rank-${i+1}">
         <div class="sh"><span class="sr">#${i+1}</span><span class="st">${s.team}</span><span class="ss">${s.score}pt</span>${scoreBar(s.score)}</div>
         <div class="reasons">${s.reasons.map(r => `<span class="tag">${r}</span>`).join('')}</div>
+        ${s.practice_field ? `<div class="field">📍 ${s.practice_field}</div>` : ''}
       </div>`).join('')
-    : `<div class="nosug">No team match found</div>`
+    : `<div class="nosug">⚠️ No team match found</div>`
 
   return `
   <tr class="${isNew ? 'isnew' : ''}">
     <td class="cn"><div class="pname">${p.first_name} ${p.last_name}</div>
       <div class="pmeta">${p.birth_date}${isNew ? ' <span class="nbadge">NEW</span>' : ''}</div></td>
     <td class="cpkg">${p.package_name}</td>
-    <td class="cprev">${p.prev_team ? `<span class="prev">${p.prev_team}</span><br><small>${p.prev_season}</small>` : '<span class="noprev">No history</span>'}</td>
+    <td class="cprev">${p.prev_team ? `<span class="prev">${p.prev_team}</span><br><small>${p.prev_season}</small>${p.prev_field ? `<br><small class="field">📍 ${p.prev_field}</small>` : ''}` : '<span class="noprev">No history</span>'}</td>
     <td class="csch">${p.school_and_grade || '—'}</td>
     <td class="creq">${hasReq ? `<span class="req">${p.special_request}</span>` : '<span class="noreq">—</span>'}</td>
     <td class="csug">${sugHtml}</td>
@@ -457,6 +478,13 @@ const html = `<!DOCTYPE html>
   body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#f1f5f9; color:#1e293b; padding:20px; }
   h1 { font-size:18px; color:#1e3a5f; margin-bottom:6px; }
   .sub { font-size:12px; color:#64748b; margin-bottom:16px; }
+  .legend { display:flex; gap:16px; margin-bottom:20px; flex-wrap:wrap; }
+  .legend-item { display:flex; align-items:center; gap:6px; font-size:11px; }
+  .legend-dot { width:12px; height:12px; border-radius:3px; }
+  .legend-green { background:#059669; }
+  .legend-orange { background:#ea580c; }
+  .legend-gray { background:#94a3b8; }
+  .legend-red { background:#dc2626; }
   table { width:100%; border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.08); font-size:12px; }
   thead th { background:#1e3a5f; color:#fff; padding:10px 10px; text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.05em; }
   tr td { padding:9px 10px; border-bottom:1px solid #f1f5f9; vertical-align:top; }
@@ -467,6 +495,7 @@ const html = `<!DOCTYPE html>
   .pmeta { font-size:10px; color:#94a3b8; margin-top:2px; }
   .nbadge { background:#fbbf24; color:#78350f; font-size:9px; font-weight:700; padding:1px 5px; border-radius:3px; }
   .prev { color:#1d4ed8; font-size:11px; }
+  .field { color:#059669; font-weight:600; }
   .noprev { color:#cbd5e1; font-style:italic; }
   small { color:#94a3b8; font-size:10px; }
   .req { color:#059669; }
@@ -482,12 +511,12 @@ const html = `<!DOCTYPE html>
   .bar { height:100%; border-radius:2px; }
   .reasons { display:flex; flex-wrap:wrap; gap:3px; }
   .tag { background:#e0f2fe; color:#0369a1; font-size:10px; padding:1px 5px; border-radius:3px; }
-  .nosug { color:#f87171; font-size:11px; font-style:italic; }
-  .rec { font-size:11px; line-height:1.5; padding:6px 8px; border-radius:5px; }
-  .rec-green  { background:#f0fdf4; border-left:3px solid #22c55e; color:#166534; }
-  .rec-yellow { background:#fffbeb; border-left:3px solid #f59e0b; color:#78350f; }
-  .rec-orange { background:#fff7ed; border-left:3px solid #f97316; color:#7c2d12; }
-  .rec-red    { background:#fef2f2; border-left:3px solid #ef4444; color:#7f1d1d; }
+  .nosug { color:#dc2626; font-size:11px; font-weight:600; font-style:italic; background:#fef2f2; padding:6px 10px; border-radius:5px; border-left:3px solid #dc2626; }
+  .rec { font-size:11px; line-height:1.5; padding:8px 10px; border-radius:6px; font-weight:600; }
+  .rec-green  { background:#dcfce7; border-left:5px solid #059669; color:#14532d; } /* ✅ DO THIS */
+  .rec-orange { background:#ffedd5; border-left:5px solid #ea580c; color:#7c2d12; } /* ⚠️ REVIEW */
+  .rec-gray   { background:#f1f5f9; border-left:5px solid #94a3b8; color:#475569; } /* ℹ️ INFO */
+  .rec-red    { background:#fee2e2; border-left:5px solid #dc2626; color:#7f1d1d; } /* 🚨 BLOCKER */
   .cpkg { width:90px; }
   .cn  { width:130px; }
   .cprev { width:170px; }
@@ -500,6 +529,12 @@ const html = `<!DOCTYPE html>
 <body>
 <h1>Elk Grove Soccer — 2026 Registration Test Matching</h1>
 <p class="sub">${players.length} players · Sorted by match confidence (high → low) · Generated ${new Date().toLocaleDateString()}</p>
+<div class="legend">
+  <div class="legend-item"><span class="legend-dot legend-green"></span>✅ DO THIS</div>
+  <div class="legend-item"><span class="legend-dot legend-orange"></span>⚠️ REVIEW</div>
+  <div class="legend-item"><span class="legend-dot legend-gray"></span>ℹ️ INFO (no action)</div>
+  <div class="legend-item"><span class="legend-dot legend-red"></span>🚨 BLOCKER</div>
+</div>
 <table>
   <thead>
     <tr>
