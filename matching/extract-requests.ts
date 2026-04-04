@@ -150,7 +150,7 @@ async function main() {
     try {
       const ex = await extract(row)
       upsert.run(
-        row.player_id, season.id, row.special_request,
+        row.player_id, season!.id, row.special_request,
         JSON.stringify(ex.coaches ?? []),
         JSON.stringify(ex.friends ?? []),
         JSON.stringify(ex.teams   ?? []),
