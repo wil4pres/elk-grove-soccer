@@ -45,6 +45,27 @@ const sections = [
     accent: 'bg-red-500',
     emoji: '🗂️',
   },
+  {
+    href: '/admin/assignments',
+    title: 'Assignments',
+    description: 'Review, approve, and override player-to-team assignments.',
+    accent: 'bg-indigo-500',
+    emoji: '📋',
+  },
+  {
+    href: '/admin/emails',
+    title: 'Email Log',
+    description: 'Track all outbound notifications sent to parents.',
+    accent: 'bg-sky-500',
+    emoji: '📧',
+  },
+  {
+    href: '/admin/inbox',
+    title: 'Inbox',
+    description: 'Parent replies and inbound messages.',
+    accent: 'bg-amber-500',
+    emoji: '📨',
+  },
 ]
 
 export default function AdminDashboard() {
