@@ -45,3 +45,4 @@ matching/*.db
 matching/*.csv
 matching/*.html
 !matching/report.html
+platform/node_modules/
