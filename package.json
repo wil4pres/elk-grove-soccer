@@ -9,9 +9,13 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.82.0",
     "@aws-sdk/client-dynamodb": "^3.1019.0",
     "@aws-sdk/client-ssm": "^3.1019.0",
     "@aws-sdk/lib-dynamodb": "^3.1019.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^12.8.0",
+    "csv-parse": "^6.2.1",
     "jose": "^6.2.2",
     "next": "16.2.1",
     "react": "19.2.4",

@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# matching tool — local data files (contain player PII, never commit)
+matching/*.db
+matching/*.csv
+matching/*.html
