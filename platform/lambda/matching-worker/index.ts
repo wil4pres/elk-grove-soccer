@@ -100,7 +100,7 @@ async function loadSchools(): Promise<SchoolRecord[]> {
   url.searchParams.set('f', 'json')
   const res = await fetch(url.toString())
   if (!res.ok) throw new Error(`ArcGIS schools HTTP ${res.status}`)
-  const json = await res.json()
+  const json = await res.json() as any
   const records: SchoolRecord[] = []
   for (const f of json.features ?? []) {
     const name: string = f.attributes?.SCH_NAME ?? ''
