@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 
-type Status = 'idle' | 'loading' | 'processing' | 'done' | 'error'
+type Status = 'idle' | 'loading' | 'done' | 'error'
 type MatchingProcessStatus = 'idle' | 'running' | 'completed' | 'failed'
 
 interface Suggestion { team: string; score: number; reasons: string[] }
@@ -26,26 +26,16 @@ export default function MatchingPage() {
   const [status, setStatus] = useState<Status>('idle')
   const [packages, setPackages] = useState<PackageResult[]>([])
   const [activeTab, setActiveTab] = useState('')
-  const [logs, setLogs] = useState<{ type: string; msg: string }[]>([])
-  const [showLog, setShowLog] = useState(false)
   const [error, setError] = useState('')
   const [matchingStatus, setMatchingStatus] = useState<MatchingProcessStatus>('idle')
   const [matchingError, setMatchingError] = useState('')
-  const logEndRef = useRef<HTMLDivElement>(null)
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const safetyTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = ''
-      if (safetyTimeoutRef.current) clearTimeout(safetyTimeoutRef.current)
-    }
+    return () => { document.body.style.overflow = '' }
   }, [])
-
-  useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [logs])
 
   const loadData = useCallback(async () => {
     setStatus('loading')
@@ -68,122 +58,61 @@ export default function MatchingPage() {
     }
   }, [activeTab])
 
-  // Check matching status
   const checkMatchingStatus = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/trigger-matching')
       if (!res.ok) return
       const state = await res.json()
-      // Don't override local 'running' state with 'idle' — state table may not exist yet
-      // Only update if DynamoDB returns a meaningful state (running/completed/failed)
       setMatchingStatus(prev => {
         if (prev === 'running' && state.status === 'idle') return prev
         return state.status
       })
       if (state.status === 'completed' || state.status === 'failed') {
         if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
-        if (state.status === 'completed') {
-          setMatchingError('')
-          loadData() // Reload results
-        } else {
-          setMatchingError(state.error || 'Matching failed')
-        }
+        if (state.status === 'failed') setMatchingError(state.error || 'Matching failed')
       }
     } catch (e) {
       console.error('Error checking matching status:', e)
     }
-  }, [loadData])
+  }, [])
 
-  // Poll for matching status changes
+  // Poll matching status when running
   useEffect(() => {
     if (matchingStatus === 'running') {
       checkMatchingStatus()
       pollIntervalRef.current = setInterval(checkMatchingStatus, 2000)
     }
-    return () => {
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
-    }
+    return () => { if (pollIntervalRef.current) clearInterval(pollIntervalRef.current) }
   }, [matchingStatus, checkMatchingStatus])
 
-  // Load data and check matching status on mount
+  // Refresh recommendations every 5 seconds
+  useEffect(() => {
+    refreshIntervalRef.current = setInterval(loadData, 5000)
+    return () => { if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current) }
+  }, [loadData])
+
+  // Initial load
   useEffect(() => {
     loadData()
     checkMatchingStatus()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function triggerMatching() {
+    setMatchingError('')
     try {
       const res = await fetch('/api/admin/trigger-matching', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) {
-        if (res.status === 409) {
-          setMatchingError('Matching already in progress')
-        } else {
-          setMatchingError(data.error || 'Failed to start matching')
-        }
+        setMatchingError(res.status === 409 ? 'Matching already in progress' : data.error || 'Failed to start matching')
         return
       }
       setMatchingStatus('running')
-      setMatchingError('')
-      setShowLog(true)
-      setLogs([{ type: 'step', msg: 'Starting geocoding + AI extraction in background...' }])
-      // Safety timeout: re-enable button after 10 min if polling never detects completion
-      if (safetyTimeoutRef.current) clearTimeout(safetyTimeoutRef.current)
-      safetyTimeoutRef.current = setTimeout(() => {
-        setMatchingStatus(prev => prev === 'running' ? 'idle' : prev)
-      }, 10 * 60 * 1000)
     } catch (e) {
       setMatchingError(e instanceof Error ? e.message : 'Failed to start matching')
     }
   }
 
-  async function processPlayers() {
-    setStatus('processing')
-    setLogs([])
-    setShowLog(true)
-
-    try {
-      const res = await fetch('/api/admin/process-players', { method: 'POST' })
-      if (!res.ok || !res.body) {
-        setStatus('error')
-        setLogs(prev => [...prev, { type: 'error', msg: `Request failed: ${res.status}` }])
-        return
-      }
-
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const parts = buffer.split('\n\n')
-        buffer = parts.pop() ?? ''
-
-        for (const part of parts) {
-          const line = part.replace(/^data: /, '').trim()
-          if (!line) continue
-          try {
-            const event = JSON.parse(line) as { type: string; msg: string }
-            setLogs(prev => [...prev, event])
-            if (event.type === 'done') {
-              // Reload scoring data after processing
-              await loadData()
-            } else if (event.type === 'error') {
-              setStatus('error')
-            }
-          } catch { /* ignore */ }
-        }
-      }
-    } catch (e) {
-      setStatus('error')
-      setLogs(prev => [...prev, { type: 'error', msg: String(e) }])
-    }
-  }
-
   const activePkg = packages.find(p => p.package_name === activeTab)
-  const isRunning = status === 'processing' || status === 'loading'
 
   return (
     <>
@@ -263,45 +192,20 @@ export default function MatchingPage() {
                 : 'Generate Recommendations'
               }
             </button>
-            {matchingError && (
-              <span className="text-xs text-red-300">{matchingError}</span>
-            )}
+            {matchingError && <span className="text-xs text-red-300">{matchingError}</span>}
             <button
               onClick={loadData}
-              disabled={isRunning}
+              disabled={status === 'loading'}
               className="px-3 py-1.5 text-sm font-medium text-white/80 border border-white/20 rounded-md hover:bg-white/10 disabled:opacity-50"
             >
               Refresh
             </button>
-            {(logs.length > 0 || matchingStatus === 'running') && (
-              <button onClick={() => setShowLog(v => !v)} className="text-xs text-white/60 hover:text-white underline">
-                {showLog ? 'Hide log' : 'Show log'}
-              </button>
-            )}
           </div>
         </div>
 
-        {/* Log panel */}
-        {showLog && (
-          <div className="shrink-0 max-h-48 overflow-y-auto bg-gray-950 text-xs font-mono px-4 py-3 border-b border-gray-800">
-            {logs.map((entry, i) => (
-              <div key={i} className={
-                entry.type === 'step' ? 'text-blue-400 font-bold mt-1' :
-                entry.type === 'done' ? 'text-green-400 font-bold mt-1' :
-                entry.type === 'error' ? 'text-red-400' : 'text-gray-300'
-              }>
-                {entry.type === 'step' ? `▶ ${entry.msg}` :
-                 entry.type === 'done' ? `✓ ${entry.msg}` :
-                 entry.type === 'error' ? `✗ ${entry.msg}` : `  ${entry.msg}`}
-              </div>
-            ))}
-            <div ref={logEndRef} />
-          </div>
-        )}
-
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 bg-[#f1f5f9]">
-          {status === 'loading' && (
+          {status === 'loading' && packages.length === 0 && (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <div className="w-8 h-8 border-4 border-[#38bdf8] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
@@ -320,7 +224,7 @@ export default function MatchingPage() {
             </div>
           )}
 
-          {activePkg && status !== 'loading' && (
+          {activePkg && (
             <>
               {/* Stats bar */}
               <div className="flex gap-2.5 flex-wrap mb-3.5">
@@ -361,7 +265,7 @@ export default function MatchingPage() {
             <div className="flex items-center justify-center h-full">
               <div className="bg-white rounded-xl shadow-sm p-12 text-center max-w-md">
                 <h2 className="text-lg font-bold text-[#1e3a5f] mb-3">No 2026 Data</h2>
-                <p className="text-sm text-gray-500">Upload players on the Uploads page, then click "Process Players" here.</p>
+                <p className="text-sm text-gray-500">Upload players on the Uploads page, then click Generate Recommendations.</p>
               </div>
             </div>
           )}
@@ -397,7 +301,6 @@ function PlayerRow({ data }: { data: ScoredPlayer }) {
 
   return (
     <tr className={`border-b border-gray-100 hover:bg-gray-50 ${isNew ? 'bg-yellow-50/50' : ''}`}>
-      {/* Player */}
       <td className="px-3 py-2.5 align-top">
         <div className="font-semibold text-gray-900">{player.first_name} {player.last_name}</div>
         <div className="text-[11px] text-gray-400 mt-0.5">
@@ -405,27 +308,19 @@ function PlayerRow({ data }: { data: ScoredPlayer }) {
           {isNew && <span className="ml-1.5 bg-amber-400 text-amber-900 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">NEW</span>}
         </div>
       </td>
-
-      {/* Prev team */}
       <td className="px-3 py-2.5 align-top">
         {player.prev_team
           ? <span className="text-xs text-blue-700">{player.prev_team}</span>
           : <span className="text-xs text-gray-300 italic">No history</span>
         }
       </td>
-
-      {/* School */}
       <td className="px-3 py-2.5 align-top text-xs text-gray-600">{player.school_and_grade || '—'}</td>
-
-      {/* Special request */}
       <td className="px-3 py-2.5 align-top">
         {hasRequest
           ? <span className="text-xs text-emerald-700">{player.special_request}</span>
           : <span className="text-gray-200">—</span>
         }
       </td>
-
-      {/* Suggestions */}
       <td className="px-3 py-2.5 align-top">
         {suggestions.length > 0 ? suggestions.map((s, i) => (
           <SuggestionCard key={i} suggestion={s} rank={i + 1} />
@@ -433,8 +328,6 @@ function PlayerRow({ data }: { data: ScoredPlayer }) {
           <span className="text-red-400 text-xs italic">Not Enough Data to Match with</span>
         )}
       </td>
-
-      {/* AI Recommendation */}
       <td className="px-3 py-2.5 align-top">
         <div className={`text-xs leading-relaxed p-2 rounded-md border-l-[3px] ${recColor}`}>
           {recommendation.text}

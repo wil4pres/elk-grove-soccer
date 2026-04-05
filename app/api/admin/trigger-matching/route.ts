@@ -51,7 +51,7 @@ async function getState(): Promise<{ status: string; [key: string]: unknown }> {
     return (res.Item as any) ?? { id: STATE_ID, status: 'idle' }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    if (msg.includes('ResourceNotFoundException') || msg.includes('does not exist')) {
+    if (msg.includes('ResourceNotFoundException') || msg.includes('does not exist') || msg.includes('Requested resource not found')) {
       return { id: STATE_ID, status: 'idle' }
     }
     throw e
