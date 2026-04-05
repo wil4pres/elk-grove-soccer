@@ -4,7 +4,7 @@ import { db } from './dynamo'
 const TABLE = 'egs-coaches'
 
 export interface CoachRecord {
-  id: string              // userId#season
+  id: string              // userId#season#teamId
   user_id: string
   season: string
   first_name: string
@@ -20,11 +20,12 @@ export function csvRowToCoach(row: Record<string, string>): CoachRecord | null {
   const firstName = row['first_name']?.trim() ?? ''
   const lastName = row['last_name']?.trim() ?? ''
   const season = row['season']?.trim() ?? ''
+  const teamId = row['team_id']?.trim() ?? ''
 
   if (!firstName || !lastName || !season) return null
 
   const userId = row['user_id']?.trim() ?? ''
-  const id = `${userId}#${season}`
+  const id = `${userId}#${season}#${teamId}`
 
   return {
     id,
@@ -34,7 +35,7 @@ export function csvRowToCoach(row: Record<string, string>): CoachRecord | null {
     last_name: lastName,
     email: row['email']?.trim() ?? '',
     mobile_number: row['mobile_number']?.trim() ?? '',
-    team_id: row['team_id']?.trim() ?? '',
+    team_id: teamId,
     team_name: row['team_name']?.trim() ?? '',
     role: row['role']?.trim() ?? '',
   }
