@@ -172,6 +172,32 @@ export default function MatchingPage() {
   const isRunning = status === 'processing' || status === 'loading'
 
   return (
+    <>
+    {/* Floating trigger button — always visible */}
+    <div style={{ position: 'fixed', top: 60, right: 16, zIndex: 9999 }}>
+      <button
+        onClick={triggerMatching}
+        disabled={matchingStatus === 'running'}
+        style={{
+          background: matchingStatus === 'running' ? '#6b7280' : '#16a34a',
+          color: 'white',
+          border: 'none',
+          borderRadius: 8,
+          padding: '10px 18px',
+          fontSize: 14,
+          fontWeight: 700,
+          cursor: matchingStatus === 'running' ? 'not-allowed' : 'pointer',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+        }}
+      >
+        {matchingStatus === 'running' ? '⏳ Running...' : '▶ Generate Recommendations'}
+      </button>
+      {matchingError && (
+        <div style={{ background: '#fee2e2', color: '#b91c1c', borderRadius: 6, padding: '6px 10px', marginTop: 6, fontSize: 12 }}>
+          {matchingError}
+        </div>
+      )}
+    </div>
     <div className="fixed inset-0 top-14 flex w-full" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
 
       {/* Sidebar */}
@@ -328,6 +354,7 @@ export default function MatchingPage() {
         </div>
       </div>
     </div>
+    </>
   )
 }
 
