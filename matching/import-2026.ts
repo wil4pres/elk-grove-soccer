@@ -5,6 +5,7 @@
 
 import Database from 'better-sqlite3'
 import { readFileSync } from 'fs'
+import { spawn } from 'child_process'
 import { parse } from 'csv-parse/sync'
 import { fileURLToPath } from 'url'
 import path from 'path'
@@ -98,3 +99,11 @@ const run = db.transaction(() => {
 
 run()
 db.close()
+
+// Kick off geocoding in the background — runs independently after import exits
+const geocoder = spawn(
+  'npx', ['tsx', path.join(__dirname, 'geocode-players.ts')],
+  { detached: true, stdio: 'inherit' }
+)
+geocoder.unref()
+console.log(`Geocoding started in background (PID ${geocoder.pid})`)

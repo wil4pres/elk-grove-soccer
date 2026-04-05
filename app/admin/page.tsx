@@ -66,6 +66,20 @@ const sections = [
     accent: 'bg-amber-500',
     emoji: '📨',
   },
+  {
+    href: '/admin/uploads',
+    title: 'Data Uploads',
+    description: 'Upload PlayMetrics CSV exports — players, registrations, and more.',
+    accent: 'bg-emerald-500',
+    emoji: '📊',
+  },
+  {
+    href: '/admin/players',
+    title: 'Players',
+    description: 'Browse all registered players by season with search and filters.',
+    accent: 'bg-cyan-500',
+    emoji: '👥',
+  },
 ]
 
 export default function AdminDashboard() {

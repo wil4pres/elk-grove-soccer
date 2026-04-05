@@ -1,4 +1,4 @@
-const CACHE_NAME = 'egs-v2'
+const CACHE_NAME = 'egs-v3'
 
 self.addEventListener('install', (event) => {
   // No precaching — pages are cached on first real visit, not upfront

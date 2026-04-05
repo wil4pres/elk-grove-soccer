@@ -12,6 +12,42 @@ import path from 'path'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const db = new Database(path.join(__dirname, 'matching.db'), { readonly: true })
 
+// ─── auto-detect current season from registered_on year ──────────────────────
+
+const currentSeasonRow = db.prepare(`
+  SELECT r.season_id, s.name AS season_name, s.year AS season_year,
+         CAST(strftime('%Y', MAX(r.registered_on)) AS INTEGER) AS reg_year
+  FROM registrations r
+  JOIN seasons s ON s.id = r.season_id
+  WHERE r.registered_on != '' AND r.registered_on IS NOT NULL
+  GROUP BY r.season_id
+  ORDER BY reg_year DESC, r.season_id DESC
+  LIMIT 1
+`).get() as { season_id: number; season_name: string; season_year: number; reg_year: number } | undefined
+
+if (!currentSeasonRow) {
+  console.error('No registrations with registered_on found — cannot determine current season.')
+  process.exit(1)
+}
+
+const CURRENT_SEASON_ID   = currentSeasonRow.season_id
+const CURRENT_SEASON_NAME = currentSeasonRow.season_name
+const CURRENT_YEAR        = currentSeasonRow.reg_year  // e.g. 2026
+
+// Previous season: highest year strictly less than current
+const prevSeasonRow = db.prepare(`
+  SELECT id, name FROM seasons
+  WHERE year < ? AND id != ?
+  ORDER BY year DESC
+  LIMIT 1
+`).get(CURRENT_YEAR, CURRENT_SEASON_ID) as { id: number; name: string } | undefined
+
+const PREV_SEASON_ID   = prevSeasonRow?.id   ?? null
+const PREV_SEASON_NAME = prevSeasonRow?.name ?? `${CURRENT_YEAR - 1}`
+
+console.log(`Current season: ${CURRENT_SEASON_NAME} (registered_on year: ${CURRENT_YEAR})`)
+console.log(`Previous season for history: ${PREV_SEASON_NAME}`)
+
 // ─── types ───────────────────────────────────────────────────────────────────
 
 interface Player {
@@ -48,8 +84,9 @@ interface Suggestion {
 
 const PACKAGES = (db.prepare(`
   SELECT DISTINCT package_name FROM registrations
-  WHERE package_name != '' ORDER BY package_name
-`).all() as any[]).map(r => r.package_name as string)
+  WHERE package_name != '' AND season_id = ?
+  ORDER BY package_name
+`).all(CURRENT_SEASON_ID) as any[]).map(r => r.package_name as string)
 
 function getPlayers(pkg: string): Player[] {
   return db.prepare(`
@@ -61,11 +98,16 @@ function getPlayers(pkg: string): Player[] {
     FROM registrations r
     JOIN players p ON p.id = r.player_id
     LEFT JOIN team_assignments ta ON ta.player_id = p.id
-      AND ta.season_id = (SELECT id FROM seasons WHERE name = 'Fall Recreation 2024' LIMIT 1)
+      AND ta.season_id = ${PREV_SEASON_ID ?? 'NULL'}
     LEFT JOIN teams t ON t.id = ta.team_id
     LEFT JOIN seasons s2 ON s2.id = ta.season_id
-    WHERE r.season_id = (SELECT id FROM seasons WHERE name = 'Fall Recreation 2025' LIMIT 1)
+    WHERE r.season_id = ${CURRENT_SEASON_ID}
       AND r.package_name = ?
+      AND NOT EXISTS (
+        SELECT 1 FROM team_assignments ta_curr
+        WHERE ta_curr.player_id = p.id
+          AND ta_curr.season_id = ${CURRENT_SEASON_ID}
+      )
     ORDER BY p.last_name, p.first_name
   `).all(pkg) as Player[]
 }
@@ -75,7 +117,7 @@ function getTeams(pkg: string): Team[] {
   if (!yearMatch) return []
   const year     = yearMatch[1]
   const gCode    = pkg.includes('Girls') ? 'G' : 'B'
-  const uAge     = 2026 - parseInt(year)
+  const uAge     = (CURRENT_YEAR + 1) - parseInt(year)
   // Two naming conventions: "2016G Butterflies (Bravo)" and "Elk Grove Soccer U16G Firestorm (Costa)"
   return db.prepare(`
     SELECT t.id, t.name, COALESCE(t.coach,'') as coach, COALESCE(t.birth_year, 0) as birth_year,
@@ -96,6 +138,7 @@ function getSiblingTeams(accountEmail: string, playerId: number): string[] {
       AND ta.season_id = (SELECT id FROM seasons WHERE name LIKE '%2025%' LIMIT 1)
     JOIN teams t ON t.id = ta.team_id
     WHERE p.account_email = ? AND p.id != ?
+      AND ta.season_id = ${CURRENT_SEASON_ID}
   `).all(accountEmail, playerId) as any[]
   return rows.map(r => r.name)
 }
@@ -398,7 +441,7 @@ function renderPackage(pkg: string): string {
           </div>
           <div class="sug-reasons">${s.reasons.map(r => `<span class="reason">${r}</span>`).join('')}</div>
         </div>`).join('')
-      : `<div class="no-suggestion">No strong match — manual review needed</div>`
+      : `<div class="no-suggestion">Not Enough Data to Match with</div>`
 
     return `
       <tr class="player-row ${isNew ? 'new-player' : ''}">
@@ -432,7 +475,7 @@ function renderPackage(pkg: string): string {
       <thead>
         <tr>
           <th class="col-name">Player</th>
-          <th class="col-prev">2024 Team</th>
+          <th class="col-prev">${CURRENT_YEAR - 1} Team</th>
           <th class="col-school">School / Grade</th>
           <th class="col-request">Special Request</th>
           <th class="col-suggestions">Suggestions</th>
@@ -462,7 +505,7 @@ const html = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Elk Grove Soccer — Team Matching Report 2025</title>
+<title>Elk Grove Soccer — Team Matching Report ${CURRENT_YEAR}</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; display: flex; height: 100vh; overflow: hidden; }
@@ -551,7 +594,7 @@ const html = `<!DOCTYPE html>
 </head>
 <body>
 <div id="sidebar">
-  <h1>EGS<br>Matching<br>2025</h1>
+  <h1>EGS<br>Matching<br>${CURRENT_YEAR}</h1>
   ${tabButtons}
 </div>
 <div id="main">

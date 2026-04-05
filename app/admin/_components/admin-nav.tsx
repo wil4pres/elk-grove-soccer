@@ -13,6 +13,8 @@ const navItems = [
   { href: '/admin/assignments', label: 'Assignments' },
   { href: '/admin/emails', label: 'Emails' },
   { href: '/admin/inbox', label: 'Inbox' },
+  { href: '/admin/uploads', label: 'Uploads' },
+  { href: '/admin/players', label: 'Players' },
 ]
 
 export function AdminNav() {

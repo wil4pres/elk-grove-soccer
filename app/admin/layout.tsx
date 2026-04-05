@@ -1,6 +1,11 @@
 'use client'
+import dynamic from 'next/dynamic'
 import { usePathname } from 'next/navigation'
-import { AdminNav } from './_components/admin-nav'
+
+const AdminNav = dynamic(
+  () => import('./_components/admin-nav').then(m => ({ default: m.AdminNav })),
+  { ssr: false }
+)
 
 const NO_NAV_ROUTES = ['/admin/login']
 

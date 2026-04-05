@@ -344,6 +344,8 @@ SESSION_SECRET=<64-char hex string for JWT signing>
 ADMIN_API_KEY=<API key for programmatic access>
 TURNSTILE_SECRET_KEY=<Cloudflare Turnstile secret key>
 RESEND_API_KEY=<Resend API key>
+ANTHROPIC_API_KEY=<Anthropic API key — required for AI special-request extraction on AWS>
+ORS_API_KEY=<OpenRouteService API key — required for road-network distance calculation>
 ```
 
 **Note:** AWS SSM Parameter Store parameters exist at `/egs/SESSION_SECRET` and `/egs/ADMIN_PASSWORD` but are **NOT accessible** at Amplify SSR Lambda runtime (the Lambda doesn't inherit the Amplify service role). The code checks `process.env.X` first and falls back to SSM — in practice, env vars always win.
@@ -620,3 +622,71 @@ aws amplify list-jobs --app-id d1gz6r6mjgacrf --branch-name main --profile elkgr
 No manual deploy steps needed. All env vars are set at the branch level in Amplify console.
 
 **Note on matching report:** `matching/report.html` must be committed to git for Amplify to bundle it. It's referenced in `next.config.ts` via `outputFileTracingIncludes` so the SSR Lambda includes it. To update the report: run `npx tsx matching/generate-report.ts`, commit `matching/report.html`, push.
+
+---
+
+## Geocoding — Current State & Future Path
+
+### Current (CLI pipeline)
+
+`import-2026.ts` automatically spawns `geocode-players.ts` as a detached background process after import completes. The coordinator does not need to run geocoding separately — it fires and runs independently using the US Census batch API (free, no key, 1000 addresses/request). Geocoding is idempotent: re-running skips already-geocoded players.
+
+**Geocoding must complete before `generate-report.ts` is run**, because proximity-to-field scoring requires player lat/lng. Check progress by watching the background process output or re-running `geocode-players.ts` (it will report "All players already geocoded" when done).
+
+### Future (admin CSV upload via web UI)
+
+When import moves to a web-based admin CSV upload endpoint, geocoding cannot fire-and-forget the same way because Amplify SSR Lambdas kill execution after the response returns. The correct architecture:
+
+1. **API route** (`POST /api/admin/import-players`) parses the CSV, saves players/registrations to DynamoDB, sets a `geocoding_status: 'pending'` field on the import record, and returns **202 Accepted** immediately.
+2. **Async worker** — one of:
+   - An **SQS message** dropped at import time → a dedicated Lambda consumer runs geocoding in batches (fits the target architecture already designed — see `egs-se-registrations` and SQS in the architecture section)
+   - A **scheduled Lambda** that polls for `geocoding_status = pending` records every few minutes and processes them
+3. **Admin UI** polls or subscribes to the import record's `geocoding_status` field and shows a progress indicator (`pending → in-progress → complete`).
+4. The matching/scoring engine must gate on `geocoding_status = complete` before running — surface an error in the admin dashboard if a player is missing coordinates at score time.
+
+**Design rule:** geocoding is always a prerequisite for proximity scoring. Never run the assignment engine against a player whose `lat/lng` is null — skip them and flag as an exception requiring coordinator review.
+
+---
+
+## Matching Engine — Migration to AWS (Decided 2026-04-04)
+
+SQLite is being retired as the matching data store. DynamoDB is the single source of truth for all matching data. The migration eliminates all local CLI scripts and makes the matching pipeline fully web-driven.
+
+### Data Store Migration
+
+| SQLite table | DynamoDB replacement | Status |
+| --- | --- | --- |
+| `players` | `egs-players` | ✅ exists |
+| `registrations` | fields on `egs-players` (`package_name`, `special_request`, etc.) | ✅ exists |
+| `teams` | `egs-teams` | 🔲 to build |
+| `request_extractions` | `egs-extractions` | 🔲 to build |
+| `field_distances` | `egs-distances` | 🔲 to build |
+| `team_assignments` | `egs-assignments` | 🔲 to build |
+
+### Build Order
+
+1. `egs-teams` DynamoDB table + team management UI (seed from 2025, add new age groups, handle coach changes)
+2. Geocoding written back to `egs-players` at upload time (lat/lng fields on player record, no separate step)
+3. AI special-request extraction at upload time → stored in `egs-extractions`
+4. Scoring engine as a Next.js API route reading entirely from DynamoDB
+5. Matching page replaced: live dynamic React UI instead of iframe of static HTML
+6. `egs-assignments` — coordinator actions: accept suggestion, override, flag exception
+7. Unrostering detection when new team upload arrives (see rule below)
+
+### Team Cloning + Unrostering Rule (Critical)
+
+When 2025 teams are cloned into 2026 as placeholders:
+
+- Coaches listed on placeholder teams may not return for 2026
+- When the actual 2026 roster CSV is uploaded from PlayMetrics, the system must **diff** it against existing placeholder teams
+- Any player pre-assigned to a team that no longer exists OR whose coach changed → immediately marked **unrostered**
+- Unrostered players are auto-queued for re-scoring and surfaced in a "Needs Re-assignment" queue in the admin dashboard — they are never silently dropped
+- Brand new age groups (no 2025 equivalent) skip the cloning step entirely and go straight through the engine from day one
+
+### Geocoding in the AWS Pipeline
+
+When a player CSV is uploaded to `egs-players`:
+
+- Census batch geocoder runs inline (small batches) or via SQS worker (large batches)
+- `lat` and `lng` written directly to the player's DynamoDB record
+- Scoring engine gates on `lat != null` — players without coordinates are flagged as exceptions, not silently skipped

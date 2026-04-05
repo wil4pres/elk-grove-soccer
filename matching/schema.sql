@@ -108,3 +108,16 @@ CREATE INDEX IF NOT EXISTS idx_reg_special_req    ON registrations(special_reque
 CREATE INDEX IF NOT EXISTS idx_assign_season      ON team_assignments(season_id);
 CREATE INDEX IF NOT EXISTS idx_assign_player      ON team_assignments(player_id);
 CREATE INDEX IF NOT EXISTS idx_assign_team        ON team_assignments(team_id);
+
+-- PlayMetrics field catalog (imported from all-fields CSV export)
+CREATE TABLE IF NOT EXISTS playmetrics_fields (
+  id           INTEGER PRIMARY KEY,   -- PlayMetrics field ID
+  facility     TEXT,                  -- Park/complex name, e.g. "Bartholomew Sports Park (BSP)"
+  address      TEXT,
+  identifier   TEXT,                  -- Sub-field label, e.g. "BSP 1", "11v11", "N"
+  display_name TEXT,                  -- facility + identifier, e.g. "Bartholomew Sports Park (BSP) — BSP 1"
+  surface      TEXT,                  -- grass / turf / hardcourt
+  travel_field INTEGER DEFAULT 0,     -- 1 if this is a travel/away field
+  lat          REAL,                  -- populated by geocoding script
+  lng          REAL
+);
