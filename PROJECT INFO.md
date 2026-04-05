@@ -648,45 +648,168 @@ When import moves to a web-based admin CSV upload endpoint, geocoding cannot fir
 
 ---
 
-## Matching Engine — Migration to AWS (Decided 2026-04-04)
+## Matching Engine — Current State (as of 2026-04-05)
 
-SQLite is being retired as the matching data store. DynamoDB is the single source of truth for all matching data. The migration eliminates all local CLI scripts and makes the matching pipeline fully web-driven.
+SQLite has been fully retired. DynamoDB is the single source of truth. The matching pipeline is entirely web-driven via the admin panel at `/admin/matching`.
 
-### Data Store Migration
+### DynamoDB Tables — Matching
 
-| SQLite table | DynamoDB replacement | Status |
+| Table | Key | Purpose | Status |
+| --- | --- | --- | --- |
+| `egs-players` | `player_id` + `season` | Player registrations + AI extraction fields + geocoded lat/lng | ✅ live |
+| `egs-teams` | `team_id` + `season` | Teams per season — 157 teams imported for 2026 | ✅ live |
+| `egs-assignments` | `player_id` + `season` | Historical and current assignment state — used for prev_team lookup and roster counts | ✅ live (2024 data) |
+| `egs-matching-state` | `id = 'matching'` | Background job state — running/completed/failed, used by UI polling | ✅ live (handled gracefully if missing) |
+
+### Player Record Fields (egs-players)
+
+Registration fields from PlayMetrics CSV:
+`player_id`, `player_first_name`, `player_last_name`, `birth_date`, `gender`, `package_name`, `season`, `special_request`, `school_and_grade`, `new_or_returning`, `account_email`, `account_phone`, `address`, `city`, `state`, `zip`, `volunteer_head_coach`, `volunteer_assistant_coach`, `registered_on`, `status`
+
+Enrichment fields written by the background pipeline:
+`lat`, `lng` — geocoded via US Census batch API
+`extraction_coaches[]`, `extraction_friends[]`, `extraction_siblings[]`, `extraction_teams[]` — AI-extracted from special_request
+`extraction_school` — clean school name (AI-parsed from school_and_grade, or Jarvis distance guess)
+`extraction_school_guessed` (bool) — true when school was guessed by distance, not parsed from parent input
+`extraction_notes` — AI-generated one-sentence context note, surfaced on every recommendation card
+
+### Team Record Fields (egs-teams)
+
+`team_id`, `team_name`, `season`, `birth_year`, `gender` (Male/Female), `coach_last_name`
+
+Team name format: `{birth_year}{G/B} {nickname} ({coach_last_name})` e.g. `2016G Lightning (Torres)`
+Team ID format: `2026-{slug}` e.g. `2026-2016g-lightning-torres`
+
+2026 teams were imported from the coach spreadsheet via `platform/dynamo/import-teams-2026.ts`.
+Age groups present: 2007, 2010, 2012, 2013, 2014, 2015, 2016, 2017, 2018 — both Male and Female where applicable.
+Total: 157 teams for season 2026.
+
+### Background Pipeline — trigger-matching
+
+Route: `POST /api/admin/trigger-matching` — fire-and-forget, does not block the HTTP response.
+State is polled by the UI every 5 seconds via `GET /api/admin/trigger-matching`.
+
+**Pipeline steps in order:**
+
+1. **Load 2026 players** from `egs-players`
+2. **Geocode** players missing lat/lng — US Census batch geocoder (free, no key, 1000/batch)
+3. **School guess (Jarvis)** — for players whose `school_and_grade` is nonsense (just a number, grade-only, blank): query EGUSD ArcGIS public layer, find nearest school of the right type (elem/middle/high) based on birth_date + lat/lng. Stored with `extraction_school_guessed = true`. Clear coordinator warning appended to recommendation.
+4. **Load previous season (2025) players** — builds lookup by `account_email|birth_date` → previous `special_request` for history context
+5. **AI extraction** (Claude Haiku) — runs on every player without `extraction_coaches`. Sends: player name, current special_request, previous season request (if found), school_and_grade field, new_or_returning. Returns structured `coaches[]`, `friends[]`, `siblings[]`, `teams[]`, `school_name`, `notes`. Stored back to DynamoDB.
+
+### Scoring Engine — lib/matching-engine.ts
+
+`runScoring(season)` is called on every page load — no pre-computed results stored. Always reads live DynamoDB.
+
+**Score signals (per player × team):**
+
+| Signal | Points | Source |
 | --- | --- | --- |
-| `players` | `egs-players` | ✅ exists |
-| `registrations` | fields on `egs-players` (`package_name`, `special_request`, etc.) | ✅ exists |
-| `teams` | `egs-teams` | 🔲 to build |
-| `request_extractions` | `egs-extractions` | 🔲 to build |
-| `field_distances` | `egs-distances` | 🔲 to build |
-| `team_assignments` | `egs-assignments` | 🔲 to build |
+| Returning to same team | +3 | prev_team from egs-assignments |
+| Requested coach (current season) | +3 | extraction_coaches[] or raw text fallback |
+| Requested coach (prev season coach, same team name) | +3 | prevTeams lookup |
+| Requested team nickname | +2 | extraction_teams[] or raw text fallback |
+| One-way friend request | +2 | extraction_friends[] or raw text fallback |
+| Mutual friend request | +4 | both players list each other |
+| Sibling (same account email, prev team) | +2 | account_email match |
+| Named sibling request, prev team match | +5 | extraction_siblings[] or regex fallback |
+| Named sibling request, same age group | +2 | extraction_siblings[] or regex fallback |
+| Same school as prev teammate | +1 | extraction_school or school_and_grade words |
+| Proximity (within 5km of 2+ teammates) | +1 | Haversine from lat/lng |
 
-### Build Order
+**Capacity signals (do not affect score — shown as warnings):**
 
-1. `egs-teams` DynamoDB table + team management UI (seed from 2025, add new age groups, handle coach changes)
-2. Geocoding written back to `egs-players` at upload time (lat/lng fields on player record, no separate step)
-3. AI special-request extraction at upload time → stored in `egs-extractions`
-4. Scoring engine as a Next.js API route reading entirely from DynamoDB
-5. Matching page replaced: live dynamic React UI instead of iframe of static HTML
-6. `egs-assignments` — coordinator actions: accept suggestion, override, flag exception
-7. Unrostering detection when new team upload arrives (see rule below)
+| Condition | Warning level |
+| --- | --- |
+| Roster at/over hard max | Red — blocks placement, coordinator must approve |
+| Roster at/over preferred max | Yellow — Jarvis note appended, coordinator may go +1-2 per rules |
+
+**AI fallback rule:** When `extraction_coaches` exists (array, even if empty), scoring uses AI fields exclusively. When it is undefined/null (AI hasn't run yet), scoring falls back to raw text fuzzy matching on `special_request`. The page works before AI extraction has run.
+
+### Roster Capacity Limits (from EGS Playing Rules PDF)
+
+| Age Group | U-Age | Preferred Max | Hard Max |
+| --- | --- | --- | --- |
+| Future Stars | U8 and below | 10 | 12 |
+| U9-U10 | U9, U10 | 12 | 14 |
+| U11-U12 | U11, U12 | 16 | 18 |
+| U13-U19 | U13–U19 | 18 | 22 |
+
+U-age is derived from birth_year at runtime: `(season_year + 1) - birth_year`. No hardcoded birth years — works across seasons automatically.
+Roster counts come from `egs-assignments` records with `assignment_status = 'rostered'` for the current season.
+
+### Sibling Matching Rules
+
+- **Same age group:** Scored +5 (prev team match) or +2 (same age group). Recommendation: green "place together."
+- **Different age group (cross-age):** No score points. Recommendation: red. Message: "One player must PLAY UP — only play-ups are allowed, no play-downs. Coordinator must decide which player moves up."
+- **Detection:** AI `siblings[]` field preferred. Fallback: regex on `"Player- Name (brother/sister)"` pattern.
+- **Play-up rule:** Only playing up is allowed. Playing down is never permitted.
+
+### School Lookup — EGUSD ArcGIS
+
+Public endpoint: `https://webmaps.elkgrove.gov/arcgis/rest/services/OPEN_DATA_PORTAL/EGUSD_Schools/MapServer/0/query`
+
+- 88 school records with polygon boundaries in WGS84
+- Centroid calculated by averaging polygon ring coordinates
+- School type values: ELEMENTARY, MIDDLE, HIGH, KTHRU8, PKTHRU8, KTHRU12, MIDDLE/HIGH, PRESCHOOL, PKTHRUK, PKTHRU9
+- Grade → school type mapping uses California Sept 1 cutoff for age calculation
+- Used only as fallback when `school_and_grade` is nonsense input
+- School cache is held in memory per pipeline run (one fetch for all players)
+
+### Jarvis — AI Persona for Coordinator Warnings
+
+The system identifies itself as **Jarvis** when surfacing guesses or uncertain recommendations:
+- School distance guesses: `"Jarvis guessed school as X based on address distance — coordinator should verify"`
+- Score reasons label guessed school: `"Same school (Jarvis guess) as N teammate(s)"`
+- Near-capacity warnings: `"⚠️ Jarvis: Roster near limit: 12/12 preferred (14 max)..."`
+
+This distinguishes machine guesses from hard facts so coordinators know what to verify.
+
+### Recommendation Levels
+
+| Level | Color | Meaning |
+| --- | --- | --- |
+| green | ✅ | High confidence — assign with no further review |
+| yellow | ⚠️ | Good match but coordinator should verify one thing |
+| orange | 🟠 | Weak signals — manual review recommended |
+| red | ❌ | Blocked — capacity full, play-up conflict, or unresolvable request |
+
+### Admin UI — /admin/matching
+
+- Packages grouped by age group (e.g. "2017 Boys", "U10 Girls")
+- Per player: name, birth date, assigned team (top suggestion), score, reasons list, recommendation text + level
+- UI auto-refreshes every 5 seconds while pipeline is running
+- "Generate Recommendations" button triggers background pipeline, shows running state
+- No SSE / streaming — fire-and-forget POST + polling GET
+
+### Data Import Scripts (platform/dynamo/)
+
+| Script | Purpose |
+| --- | --- |
+| `import-teams-2026.ts` | Hardcoded 157 teams from coach spreadsheet — run once to seed 2026 teams |
+| `clone-teams-2026.ts` | Clones 2025 teams into 2026 as placeholders — superseded by import-teams-2026.ts |
+
+Run with: `DYNAMO_ACCESS_KEY_ID=... DYNAMO_SECRET_ACCESS_KEY=... npx tsx platform/dynamo/<script>.ts`
+Do NOT use default AWS CLI credentials — the app uses a separate IAM user (`DYNAMO_ACCESS_KEY_ID` in `.env.local`).
+
+### Build Order — Remaining Work
+
+1. ✅ `egs-teams` seeded for 2026
+2. ✅ Geocoding pipeline live
+3. ✅ AI extraction pipeline live (school, siblings, history, notes)
+4. ✅ Scoring engine live with all signals
+5. ✅ Roster capacity warnings live
+6. ✅ Jarvis school distance guessing live
+7. 🔲 `volunteer_head_coach` / `volunteer_assistant_coach` fields used for scoring (parent coaching their own kid → near-certain team match)
+8. 🔲 `egs-assignments` write — coordinator accepts suggestion → writes to DynamoDB
+9. 🔲 Parent confirmation email (Resend) on assignment
+10. 🔲 PlayMetrics webhook or polling trigger for real-time auto-assignment
 
 ### Team Cloning + Unrostering Rule (Critical)
 
-When 2025 teams are cloned into 2026 as placeholders:
-
-- Coaches listed on placeholder teams may not return for 2026
-- When the actual 2026 roster CSV is uploaded from PlayMetrics, the system must **diff** it against existing placeholder teams
-- Any player pre-assigned to a team that no longer exists OR whose coach changed → immediately marked **unrostered**
-- Unrostered players are auto-queued for re-scoring and surfaced in a "Needs Re-assignment" queue in the admin dashboard — they are never silently dropped
-- Brand new age groups (no 2025 equivalent) skip the cloning step entirely and go straight through the engine from day one
-
-### Geocoding in the AWS Pipeline
-
-When a player CSV is uploaded to `egs-players`:
-
-- Census batch geocoder runs inline (small batches) or via SQS worker (large batches)
-- `lat` and `lng` written directly to the player's DynamoDB record
-- Scoring engine gates on `lat != null` — players without coordinates are flagged as exceptions, not silently skipped
+When teams are cloned from a prior season as placeholders:
+- Coaches on placeholder teams may not return for the new season
+- When actual team data arrives, diff against placeholders
+- Any player pre-assigned to a team that no longer exists OR whose coach changed → mark unrostered
+- Unrostered players auto-queued for re-scoring — never silently dropped
+- New age groups with no prior season equivalent skip cloning entirely
