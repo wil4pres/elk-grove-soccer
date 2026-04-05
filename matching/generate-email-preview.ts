@@ -20,7 +20,7 @@ db.pragma('journal_mode = WAL')
 // ─── config ───────────────────────────────────────────────────────────────────
 
 const TEST_EMAIL   = 'wnewsom@elkgrovesoccer.com'
-const FROM_EMAIL   = 'register_jarvis@elkgrovesoccer.com'  // not yet active
+const FROM_EMAIL   = 'register_augur@elkgrovesoccer.com'  // not yet active
 const SEASON_NAME  = process.argv[2] || 'Fall Recreation 2026'
 const MARK_SENT    = process.argv.includes('--mark-sent')
 

@@ -32,6 +32,7 @@ export default function MatchingPage() {
   const [completedTime, setCompletedTime] = useState('')
   const [startedAt, setStartedAt] = useState<Date | null>(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [stepLabel, setStepLabel] = useState('')
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -72,11 +73,13 @@ export default function MatchingPage() {
       })
       if (state.status === 'running' && state.startedAt) {
         setStartedAt(new Date(state.startedAt))
+        if (state.stepLabel) setStepLabel(state.stepLabel)
       }
       if (state.status === 'completed' || state.status === 'failed') {
         if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
         setStartedAt(null)
         setElapsedSeconds(0)
+        setStepLabel('')
         if (state.status === 'failed') {
           setMatchingError(state.error || 'Matching failed')
         } else {
@@ -142,6 +145,7 @@ export default function MatchingPage() {
       setMatchingStatus('running')
       setStartedAt(new Date())
       setElapsedSeconds(0)
+      setStepLabel('Starting…')
     } catch (e) {
       setMatchingError(e instanceof Error ? e.message : 'Failed to start matching')
     }
@@ -169,7 +173,7 @@ export default function MatchingPage() {
         }}
       >
         {matchingStatus === 'running'
-          ? `⏳ Running… ${elapsedSeconds}s`
+          ? `⏳ ${stepLabel || 'Running…'} ${elapsedSeconds}s`
           : matchingStatus === 'completed'
           ? `✓ Done — ${completedTime}`
           : '▶ Generate Recommendations'}
@@ -240,7 +244,7 @@ export default function MatchingPage() {
               }`}
             >
               {matchingStatus === 'running'
-                ? <><span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-2 align-middle" />Running...</>
+                ? <><span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-2 align-middle" />{stepLabel || 'Running…'}</>
                 : matchingStatus === 'completed'
                 ? `✓ Done — ${completedTime}`
                 : 'Generate Recommendations'

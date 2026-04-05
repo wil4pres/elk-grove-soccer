@@ -669,7 +669,7 @@ Registration fields from PlayMetrics CSV:
 Enrichment fields written by the background pipeline:
 `lat`, `lng` — geocoded via US Census batch API
 `extraction_coaches[]`, `extraction_friends[]`, `extraction_siblings[]`, `extraction_teams[]` — AI-extracted from special_request
-`extraction_school` — clean school name (AI-parsed from school_and_grade, or Jarvis distance guess)
+`extraction_school` — clean school name (AI-parsed from school_and_grade, or Augur distance guess)
 `extraction_school_guessed` (bool) — true when school was guessed by distance, not parsed from parent input
 `extraction_notes` — AI-generated one-sentence context note, surfaced on every recommendation card
 
@@ -693,7 +693,7 @@ State is polled by the UI every 5 seconds via `GET /api/admin/trigger-matching`.
 
 1. **Load 2026 players** from `egs-players`
 2. **Geocode** players missing lat/lng — US Census batch geocoder (free, no key, 1000/batch)
-3. **School guess (Jarvis)** — for players whose `school_and_grade` is nonsense (just a number, grade-only, blank): query EGUSD ArcGIS public layer, find nearest school of the right type (elem/middle/high) based on birth_date + lat/lng. Stored with `extraction_school_guessed = true`. Clear coordinator warning appended to recommendation.
+3. **School guess (Augur)** — for players whose `school_and_grade` is nonsense (just a number, grade-only, blank): query EGUSD ArcGIS public layer, find nearest school of the right type (elem/middle/high) based on birth_date + lat/lng. Stored with `extraction_school_guessed = true`. Clear coordinator warning appended to recommendation.
 4. **Load previous season (2025) players** — builds lookup by `account_email|birth_date` → previous `special_request` for history context
 5. **AI extraction** (Claude Haiku) — runs on every player without `extraction_coaches`. Sends: player name, current special_request, previous season request (if found), school_and_grade field, new_or_returning. Returns structured `coaches[]`, `friends[]`, `siblings[]`, `teams[]`, `school_name`, `notes`. Stored back to DynamoDB.
 
@@ -706,13 +706,13 @@ All third-party APIs and external data sources used by the app and matching pipe
 | **Anthropic Claude API** | `https://api.anthropic.com` | `ANTHROPIC_API_KEY` env var | AI extraction of special requests (model: claude-haiku-4-5-20251001) |
 | **US Census Geocoder** | `https://geocoding.geo.census.gov/geocoder/locations/addressbatch` | None (free, no key) | Batch geocoding player addresses → lat/lng, 1000 addresses per request |
 | **Open-Meteo Weather API** | `https://api.open-meteo.com/v1/forecast` | None (free, no key) | Current weather conditions for Elk Grove and surrounding cities, 15-min revalidation |
-| **EGUSD ArcGIS — Schools** | `https://webmaps.elkgrove.gov/arcgis/rest/services/OPEN_DATA_PORTAL/EGUSD_Schools/MapServer/0/query` | None (public) | School name and location lookup for Jarvis school distance guessing |
+| **EGUSD ArcGIS — Schools** | `https://webmaps.elkgrove.gov/arcgis/rest/services/OPEN_DATA_PORTAL/EGUSD_Schools/MapServer/0/query` | None (public) | School name and location lookup for Augur school distance guessing |
 | **Resend Email API** | `https://api.resend.com` | `RESEND_API_KEY` env var | Contact form email forwarding; future parent assignment confirmation emails |
 | **Cloudflare Turnstile** | `https://challenges.cloudflare.com/turnstile/v0/siteverify` | `TURNSTILE_SECRET_KEY` env var | Bot/spam protection on the public contact form |
 | **Google Maps Embed** | `https://www.google.com/maps?q=ADDRESS&output=embed` | None (embed, no key) | Field location maps on the Maps page |
 | **Google Sheets CSV** | `https://docs.google.com/spreadsheets/d/16bRzFp0IghrxTgSmLwrPymM9goh8fx5kXadiRTlXhaI/export?format=csv&gid=1891176485` | None (public sheet) | Live game schedule — fetched every 60 seconds |
 
-### AI Data Sources — What Jarvis Receives and From Where
+### AI Data Sources — What Augur Receives and From Where
 
 Every source of information fed into AI extraction and scoring, listed with where it comes from and what it produces.
 
@@ -720,15 +720,15 @@ Every source of information fed into AI extraction and scoring, listed with wher
 | --- | --- | --- | --- |
 | `special_request` (current season) | Parent free-text on registration form | `egs-players.special_request` | Primary input to AI extraction — coaches, friends, siblings, teams, notes |
 | `special_request` (previous season) | Prior year registration, matched by `account_email + birth_date` | `egs-players` season N-1 | Sent to AI as `prev_special_request` — fills gaps when current request is blank or vague |
-| `school_and_grade` | Parent free-text on registration form | `egs-players.school_and_grade` | AI parses into clean `extraction_school`; fallback to Jarvis distance guess when input is nonsense |
+| `school_and_grade` | Parent free-text on registration form | `egs-players.school_and_grade` | AI parses into clean `extraction_school`; fallback to Augur distance guess when input is nonsense |
 | `new_or_returning` | Registration form dropdown | `egs-players.new_or_returning` | Sent to AI for context; used in recommend() to adjust tone for new players |
 | `birth_date` | Registration form | `egs-players.birth_date` | Calculates grade level for school type lookup; age group validation; play-up detection |
-| `lat` / `lng` | US Census batch geocoder (run during pipeline) | `egs-players.lat`, `.lng` | Haversine proximity scoring (+1 within 5km of 2+ teammates); Jarvis school distance guess |
+| `lat` / `lng` | US Census batch geocoder (run during pipeline) | `egs-players.lat`, `.lng` | Haversine proximity scoring (+1 within 5km of 2+ teammates); Augur school distance guess |
 | `address`, `city`, `state`, `zip` | Registration form | `egs-players.*` | Input to Census geocoder |
 | `account_email` | Registration form | `egs-players.account_email` | Automatic sibling detection (same email = same family); prev season request lookup |
 | Previous assignments | Historical coordinator decisions | `egs-assignments` (all seasons) | `prev_team` signal — returning player bonus (+3), friend match anchor, multi-year history |
 | Team coach names | Coach spreadsheet (imported manually) | `egs-teams.coach_last_name` | Matched against `extraction_coaches[]` to score coach requests |
-| EGUSD school locations | Public ArcGIS layer (88 schools, WGS84 polygons) | https://webmaps.elkgrove.gov/arcgis/rest/services/OPEN_DATA_PORTAL/EGUSD_Schools/MapServer/0/query | Jarvis school guess when parent input is nonsense — nearest school of right type by distance |
+| EGUSD school locations | Public ArcGIS layer (88 schools, WGS84 polygons) | https://webmaps.elkgrove.gov/arcgis/rest/services/OPEN_DATA_PORTAL/EGUSD_Schools/MapServer/0/query | Augur school guess when parent input is nonsense — nearest school of right type by distance |
 | Roster counts | `egs-assignments` current season, `assignment_status = 'rostered'` | `egs-assignments` | Capacity warnings — preferred max and hard max per EGS Playing Rules |
 | EGS Playing Rules | Official league rules PDF | Hardcoded in `teamCapacity()` in `matching-engine.ts` | Capacity limits by age group (U8: 10/12, U9-10: 12/14, U11-12: 16/18, U13-19: 18/22) |
 
@@ -782,7 +782,7 @@ Previous season request: "{prev_special_request}"   ← only if found
 | Condition | Warning level |
 | --- | --- |
 | Roster at/over hard max | Red — blocks placement, coordinator must approve |
-| Roster at/over preferred max | Yellow — Jarvis note appended, coordinator may go +1-2 per rules |
+| Roster at/over preferred max | Yellow — Augur note appended, coordinator may go +1-2 per rules |
 
 **AI fallback rule:** When `extraction_coaches` exists (array, even if empty), scoring uses AI fields exclusively. When it is undefined/null (AI hasn't run yet), scoring falls back to raw text fuzzy matching on `special_request`. The page works before AI extraction has run.
 
@@ -816,12 +816,12 @@ Public endpoint: `https://webmaps.elkgrove.gov/arcgis/rest/services/OPEN_DATA_PO
 - Used only as fallback when `school_and_grade` is nonsense input
 - School cache is held in memory per pipeline run (one fetch for all players)
 
-### Jarvis — AI Persona for Coordinator Warnings
+### Augur — AI Persona for Coordinator Warnings
 
-The system identifies itself as **Jarvis** when surfacing guesses or uncertain recommendations:
-- School distance guesses: `"Jarvis guessed school as X based on address distance — coordinator should verify"`
-- Score reasons label guessed school: `"Same school (Jarvis guess) as N teammate(s)"`
-- Near-capacity warnings: `"⚠️ Jarvis: Roster near limit: 12/12 preferred (14 max)..."`
+The system identifies itself as **Augur** when surfacing guesses or uncertain recommendations:
+- School distance guesses: `"Augur guessed school as X based on address distance — coordinator should verify"`
+- Score reasons label guessed school: `"Same school (Augur guess) as N teammate(s)"`
+- Near-capacity warnings: `"⚠️ Augur: Roster near limit: 12/12 preferred (14 max)..."`
 
 This distinguishes machine guesses from hard facts so coordinators know what to verify.
 
@@ -859,7 +859,7 @@ Do NOT use default AWS CLI credentials — the app uses a separate IAM user (`DY
 3. ✅ AI extraction pipeline live (school, siblings, history, notes)
 4. ✅ Scoring engine live with all signals
 5. ✅ Roster capacity warnings live
-6. ✅ Jarvis school distance guessing live
+6. ✅ Augur school distance guessing live
 7. 🔲 `volunteer_head_coach` / `volunteer_assistant_coach` fields used for scoring (parent coaching their own kid → near-certain team match)
 8. 🔲 `egs-assignments` write — coordinator accepts suggestion → writes to DynamoDB
 9. 🔲 Parent confirmation email (Resend) on assignment

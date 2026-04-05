@@ -417,7 +417,7 @@ function score(
     })
     if (sameSchool.length > 0) {
       total += 1
-      const guessLabel = player.extraction_school_guessed ? ` (Jarvis guess)` : ''
+      const guessLabel = player.extraction_school_guessed ? ` (Augur guess)` : ''
       reasons.push(`Same school${guessLabel} as ${sameSchool.length} teammate(s)`)
     }
   }
@@ -475,10 +475,10 @@ function recommend(player: MatchPlayer, suggestions: Suggestion[], allPlayers: M
   const hasReq = req && !['n/a', 'na', 'none', '-'].includes(req.toLowerCase())
   const top = suggestions[0]
   const isNew = (player.new_or_returning || '').toLowerCase().includes('new')
-  const jarvisSchoolNote = player.extraction_school_guessed && player.extraction_school
-    ? `Jarvis guessed school as "${player.extraction_school}" based on address distance — coordinator should verify`
+  const augurSchoolNote = player.extraction_school_guessed && player.extraction_school
+    ? `Augur guessed school as "${player.extraction_school}" based on address distance — coordinator should verify`
     : undefined
-  const notes = [player.extraction_notes, jarvisSchoolNote].filter(Boolean).join(' | ') || undefined
+  const notes = [player.extraction_notes, augurSchoolNote].filter(Boolean).join(' | ') || undefined
 
   // Sibling cross-age check — runs whether or not there are suggestions
   // Use AI-extracted siblings[] when available, fall back to regex
@@ -547,7 +547,7 @@ function recommend(player: MatchPlayer, suggestions: Suggestion[], allPlayers: M
     const capDetail = capReason.match(/\d+\/\d+ preferred \((\d+) max\)/)
     const maxNote = capDetail ? ` (hard max: ${capDetail[1]})` : ''
     // Let the normal recommendation logic run, but append a capacity note
-    const capacityNote = `⚠️ Jarvis: ${capReason}${maxNote} — coordinator may place 1-2 over preferred per rules`
+    const capacityNote = `⚠️ Augur: ${capReason}${maxNote} — coordinator may place 1-2 over preferred per rules`
     const normalNotes = notes ? `${notes} | ${capacityNote}` : capacityNote
     // Re-wrap with combined notes for this branch
     const wCap = (rec: Recommendation) => withNotes(rec, normalNotes)
