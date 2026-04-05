@@ -29,6 +29,7 @@ export default function MatchingPage() {
   const [error, setError] = useState('')
   const [matchingStatus, setMatchingStatus] = useState<MatchingProcessStatus>('idle')
   const [matchingError, setMatchingError] = useState('')
+  const [completedTime, setCompletedTime] = useState('')
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -69,7 +70,19 @@ export default function MatchingPage() {
       })
       if (state.status === 'completed' || state.status === 'failed') {
         if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
-        if (state.status === 'failed') setMatchingError(state.error || 'Matching failed')
+        if (state.status === 'failed') {
+          setMatchingError(state.error || 'Matching failed')
+        } else {
+          // Show completed state with timestamp, then reset to idle after 8s
+          const completedAt = state.completedAt
+            ? new Date(state.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+            : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+          setCompletedTime(completedAt)
+          setTimeout(() => {
+            setMatchingStatus('idle')
+            setCompletedTime('')
+          }, 8000)
+        }
       }
     } catch (e) {
       console.error('Error checking matching status:', e)
@@ -122,7 +135,7 @@ export default function MatchingPage() {
         onClick={triggerMatching}
         disabled={matchingStatus === 'running'}
         style={{
-          background: matchingStatus === 'running' ? '#6b7280' : '#16a34a',
+          background: matchingStatus === 'running' ? '#6b7280' : matchingStatus === 'completed' ? '#15803d' : '#16a34a',
           color: 'white',
           border: 'none',
           borderRadius: 8,
@@ -133,7 +146,7 @@ export default function MatchingPage() {
           boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
         }}
       >
-        {matchingStatus === 'running' ? '⏳ Running...' : '▶ Generate Recommendations'}
+        {matchingStatus === 'running' ? '⏳ Running...' : matchingStatus === 'completed' ? `✓ Done — ${completedTime}` : '▶ Generate Recommendations'}
       </button>
       {matchingError && (
         <div style={{ background: '#fee2e2', color: '#b91c1c', borderRadius: 6, padding: '6px 10px', marginTop: 6, fontSize: 12 }}>
@@ -184,11 +197,15 @@ export default function MatchingPage() {
               onClick={triggerMatching}
               disabled={matchingStatus === 'running'}
               className={`px-4 py-1.5 text-sm font-semibold text-white rounded-md transition-colors ${
-                matchingStatus === 'running' ? 'bg-white/20 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
+                matchingStatus === 'running' ? 'bg-white/20 cursor-not-allowed' :
+                matchingStatus === 'completed' ? 'bg-green-500 cursor-default' :
+                'bg-green-600 hover:bg-green-700'
               }`}
             >
               {matchingStatus === 'running'
                 ? <><span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-2 align-middle" />Running...</>
+                : matchingStatus === 'completed'
+                ? `✓ Done — ${completedTime}`
                 : 'Generate Recommendations'
               }
             </button>
