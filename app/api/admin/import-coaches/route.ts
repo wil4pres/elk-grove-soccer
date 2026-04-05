@@ -43,6 +43,7 @@ export async function POST(req: Request) {
     const skipped = rows.length - coaches.length
     const season = coaches[0]?.season ?? rows[0]?.['season']?.trim() ?? 'Fall Recreation 2025'
 
+    console.log(`[import-coaches] Processing ${coaches.length} coaches for season ${season}`)
     const result = await replaceCoachesForSeason(coaches, season)
 
     return ok({
@@ -54,6 +55,8 @@ export async function POST(req: Request) {
       season,
     })
   } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    console.error('[import-coaches] Error:', msg, e)
     return serverError(e)
   }
 }

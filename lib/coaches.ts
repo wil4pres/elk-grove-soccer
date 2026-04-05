@@ -41,6 +41,7 @@ export function csvRowToCoach(row: Record<string, string>): CoachRecord | null {
 }
 
 async function deleteAllCoachesForSeason(season: string): Promise<void> {
+  console.log(`[coaches] Deleting all coaches for season: ${season}`)
   let lastKey: Record<string, unknown> | undefined
 
   do {
@@ -56,6 +57,7 @@ async function deleteAllCoachesForSeason(season: string): Promise<void> {
 
     const items = res.Items ?? []
     if (items.length > 0) {
+      console.log(`[coaches] Found ${items.length} coaches to delete`)
       for (let i = 0; i < items.length; i += 25) {
         const batch = items.slice(i, i + 25)
         await db.send(
