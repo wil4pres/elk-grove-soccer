@@ -127,6 +127,16 @@ export async function loadMatchingData(season: string) {
     }
   }
 
+  // Count already-confirmed assignments for current season: team_name → count
+  // Coordinators use this to see how full a team is before placing another player
+  const teamRosterCount = new Map<string, number>()
+  for (const a of allAssignments) {
+    if (a.season === season && a.assignment_status?.toLowerCase() === 'rostered') {
+      const t = a.team_name ?? ''
+      if (t) teamRosterCount.set(t, (teamRosterCount.get(t) ?? 0) + 1)
+    }
+  }
+
   // Transform players
   const players: MatchPlayer[] = rawPlayers.map(p => {
     const prev = prevTeamMap.get(p.player_id)
@@ -173,13 +183,25 @@ export async function loadMatchingData(season: string) {
   const currentTeams = allTeams.filter(t => t.season === season)
   const prevTeams = allTeams.filter(t => t.season !== season)
 
-  return { packages, playersByPackage, currentTeams, prevTeams, seasonYear }
+  return { packages, playersByPackage, currentTeams, prevTeams, seasonYear, teamRosterCount }
 }
 
 // ─── scoring ────────────────────────────────────────────────────────────────────
 
 function norm(s: string): string {
   return s.toLowerCase().replace(/['\u2019\-.]/g, '')
+}
+
+// ─── Roster capacity (from official EGS Playing Rules) ──────────────────────────
+// Returns { preferred, max } for a given birth year in the current season
+function teamCapacity(birthYear: string, seasonYear: number): { preferred: number; max: number } {
+  const by = parseInt(birthYear || '0')
+  if (!by) return { preferred: 18, max: 22 }
+  const uAge = (seasonYear + 1) - by   // U-age = next calendar year minus birth year
+  if (uAge <= 8)  return { preferred: 10, max: 12 }   // Future Stars
+  if (uAge <= 10) return { preferred: 12, max: 14 }   // U9-U10
+  if (uAge <= 12) return { preferred: 16, max: 18 }   // U11-U12
+  return { preferred: 18, max: 22 }                    // U13-U19
 }
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -242,6 +264,8 @@ function score(
   team: MatchTeam,
   allPlayers: MatchPlayer[],
   prevTeams: MatchTeam[],
+  teamRosterCount: Map<string, number>,
+  seasonYear: number,
 ): Suggestion {
   const reasons: string[] = []
   let total = 0
@@ -410,6 +434,15 @@ function score(
     }
   }
 
+  // ── Roster capacity check (does NOT affect score, only adds a reason label) ──
+  const currentCount = teamRosterCount.get(team.team_name) ?? 0
+  const { preferred, max } = teamCapacity(team.birth_year, seasonYear)
+  if (currentCount >= max) {
+    reasons.push(`ROSTER FULL: ${currentCount}/${max} players (hard max per EGS rules)`)
+  } else if (currentCount >= preferred) {
+    reasons.push(`Roster near limit: ${currentCount}/${preferred} preferred (${max} max allowed)`)
+  }
+
   return { team: team.team_name, score: total, reasons }
 }
 
@@ -418,11 +451,13 @@ function getSuggestions(
   teams: MatchTeam[],
   allPlayers: MatchPlayer[],
   prevTeams: MatchTeam[],
+  teamRosterCount: Map<string, number>,
+  seasonYear: number,
 ): Suggestion[] {
   // ONLY score against current season teams — never previous year teams.
   // Previous team history is used as a scoring SIGNAL, not a candidate.
   return teams
-    .map(t => score(player, t, allPlayers, prevTeams))
+    .map(t => score(player, t, allPlayers, prevTeams, teamRosterCount, seasonYear))
     .filter(s => s.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 3)
@@ -494,6 +529,37 @@ function recommend(player: MatchPlayer, suggestions: Suggestion[], allPlayers: M
   const hasSiblingNamedSameAge = reasons.some(r => r.includes('same age group'))
   const hasSchool = reasons.some(r => r.includes('school'))
   const hasProximity = reasons.some(r => r.includes('Lives near'))
+  const rosterFull = reasons.some(r => r.includes('ROSTER FULL'))
+  const rosterNearLimit = reasons.some(r => r.includes('Roster near limit'))
+
+  // ── Capacity warnings — always surface before any other recommendation ────────
+  if (rosterFull) {
+    // Still show the best match, but escalate to red and force coordinator decision
+    const baseText = top.score >= 3
+      ? `Best match is ${top.team} (score ${top.score}) but`
+      : `Suggested team ${top.team} but`
+    return w({ level: 'red', text: `${baseText} this team is FULL — adding this player exceeds the hard max per EGS rules. Coordinator must approve override or assign to a different team.` })
+  }
+
+  if (rosterNearLimit) {
+    // Downgrade any green to yellow, flag the capacity concern in the text
+    const capReason = reasons.find(r => r.includes('Roster near limit')) ?? ''
+    const capDetail = capReason.match(/\d+\/\d+ preferred \((\d+) max\)/)
+    const maxNote = capDetail ? ` (hard max: ${capDetail[1]})` : ''
+    // Let the normal recommendation logic run, but append a capacity note
+    const capacityNote = `⚠️ Jarvis: ${capReason}${maxNote} — coordinator may place 1-2 over preferred per rules`
+    const normalNotes = notes ? `${notes} | ${capacityNote}` : capacityNote
+    // Re-wrap with combined notes for this branch
+    const wCap = (rec: Recommendation) => withNotes(rec, normalNotes)
+    // Downgrade green → yellow if near limit
+    if (hasPlayingUp) return wCap({ level: 'yellow', text: `Previously on ${top.team} but age group differs — coordinator verify if playing up again.` })
+    if (hasPrevTeam && hasReq && !hasCoachReq && !hasTeamReq && !hasSiblingNamedTogether && !hasSiblingNamedSameAge)
+      return wCap({ level: 'yellow', text: `Was on ${player.prev_team} last year but has a new request ("${req}"). Confirm with family before reassigning.` })
+    if (hasSiblingNamedTogether) return wCap({ level: 'yellow', text: `Assign to ${top.team}. Sibling request — both players were on this team, but roster is near limit.` })
+    if (hasSiblingNamedSameAge) return wCap({ level: 'yellow', text: `Assign to ${top.team}. Sibling request in same age group — roster is near limit, coordinator should confirm.` })
+    if (top.score >= 4) return wCap({ level: 'yellow', text: `Suggest ${top.team} (score ${top.score}) — strong match but roster is near preferred limit.` })
+    return wCap({ level: 'orange', text: `Consider ${top.team} (score ${top.score}) — roster is near limit, may want to find an alternate team.` })
+  }
 
   if (hasPlayingUp)
     return w({ level: 'yellow', text: `Previously on ${top.team} but age group differs — coordinator verify if playing up again.` })
@@ -544,7 +610,7 @@ function recommend(player: MatchPlayer, suggestions: Suggestion[], allPlayers: M
 // ─── main entry point ───────────────────────────────────────────────────────────
 
 export async function runScoring(season: string): Promise<PackageResult[]> {
-  const { packages, playersByPackage, currentTeams, prevTeams, seasonYear } =
+  const { packages, playersByPackage, currentTeams, prevTeams, seasonYear, teamRosterCount } =
     await loadMatchingData(season)
 
   const results: PackageResult[] = []
@@ -555,7 +621,7 @@ export async function runScoring(season: string): Promise<PackageResult[]> {
 
     const scoredPlayers: ScoredPlayer[] = players
       .map(player => {
-        const suggestions = getSuggestions(player, teams, players, prevTeams)
+        const suggestions = getSuggestions(player, teams, players, prevTeams, teamRosterCount, seasonYear)
         const recommendation = recommend(player, suggestions, players)
         return { player, suggestions, recommendation }
       })
