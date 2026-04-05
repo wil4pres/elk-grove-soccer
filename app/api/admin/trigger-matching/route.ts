@@ -65,31 +65,25 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Check current state
-    const stateRes = await db.send(new GetCommand({
-      TableName: STATE_TABLE,
-      Key: { id: STATE_ID },
-    }))
-
-    const currentState = stateRes.Item as any
-
-    // If already running, return error
-    if (currentState?.status === 'running') {
-      return NextResponse.json(
-        { error: 'Matching already in progress' },
-        { status: 409 }
-      )
+    // Check current state (gracefully handle missing table)
+    try {
+      const stateRes = await db.send(new GetCommand({
+        TableName: STATE_TABLE,
+        Key: { id: STATE_ID },
+      }))
+      const currentState = stateRes.Item as any
+      if (currentState?.status === 'running') {
+        return NextResponse.json({ error: 'Matching already in progress' }, { status: 409 })
+      }
+      // Set state to running
+      await db.send(new PutCommand({
+        TableName: STATE_TABLE,
+        Item: { id: STATE_ID, status: 'running', startedAt: new Date().toISOString() },
+      }))
+    } catch (stateErr) {
+      // Table doesn't exist — proceed without state tracking
+      console.warn('[trigger-matching] State table unavailable, proceeding without lock:', stateErr instanceof Error ? stateErr.message : stateErr)
     }
-
-    // Set state to running
-    await db.send(new PutCommand({
-      TableName: STATE_TABLE,
-      Item: {
-        id: STATE_ID,
-        status: 'running',
-        startedAt: new Date().toISOString(),
-      },
-    }))
 
     // Start matching process in background (don't await)
     triggerMatchingAsync()
