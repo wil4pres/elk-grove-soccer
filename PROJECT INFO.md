@@ -697,6 +697,51 @@ State is polled by the UI every 5 seconds via `GET /api/admin/trigger-matching`.
 4. **Load previous season (2025) players** — builds lookup by `account_email|birth_date` → previous `special_request` for history context
 5. **AI extraction** (Claude Haiku) — runs on every player without `extraction_coaches`. Sends: player name, current special_request, previous season request (if found), school_and_grade field, new_or_returning. Returns structured `coaches[]`, `friends[]`, `siblings[]`, `teams[]`, `school_name`, `notes`. Stored back to DynamoDB.
 
+### AI Data Sources — What Jarvis Receives and From Where
+
+Every source of information fed into AI extraction and scoring, listed with where it comes from and what it produces.
+
+| Data | Source | Where it lives | Used for |
+| --- | --- | --- | --- |
+| `special_request` (current season) | Parent free-text on registration form | `egs-players.special_request` | Primary input to AI extraction — coaches, friends, siblings, teams, notes |
+| `special_request` (previous season) | Prior year registration, matched by `account_email + birth_date` | `egs-players` season N-1 | Sent to AI as `prev_special_request` — fills gaps when current request is blank or vague |
+| `school_and_grade` | Parent free-text on registration form | `egs-players.school_and_grade` | AI parses into clean `extraction_school`; fallback to Jarvis distance guess when input is nonsense |
+| `new_or_returning` | Registration form dropdown | `egs-players.new_or_returning` | Sent to AI for context; used in recommend() to adjust tone for new players |
+| `birth_date` | Registration form | `egs-players.birth_date` | Calculates grade level for school type lookup; age group validation; play-up detection |
+| `lat` / `lng` | US Census batch geocoder (run during pipeline) | `egs-players.lat`, `.lng` | Haversine proximity scoring (+1 within 5km of 2+ teammates); Jarvis school distance guess |
+| `address`, `city`, `state`, `zip` | Registration form | `egs-players.*` | Input to Census geocoder |
+| `account_email` | Registration form | `egs-players.account_email` | Automatic sibling detection (same email = same family); prev season request lookup |
+| Previous assignments | Historical coordinator decisions | `egs-assignments` (all seasons) | `prev_team` signal — returning player bonus (+3), friend match anchor, multi-year history |
+| Team coach names | Coach spreadsheet (imported manually) | `egs-teams.coach_last_name` | Matched against `extraction_coaches[]` to score coach requests |
+| EGUSD school locations | Public ArcGIS layer (88 schools, WGS84 polygons) | `https://webmaps.elkgrove.gov/arcgis/rest/services/OPEN_DATA_PORTAL/EGUSD_Schools/MapServer/0/query` | Jarvis school guess when parent input is nonsense — nearest school of right type by distance |
+| Roster counts | `egs-assignments` current season, `assignment_status = 'rostered'` | `egs-assignments` | Capacity warnings — preferred max and hard max per EGS Playing Rules |
+| EGS Playing Rules | Official league rules PDF | Hardcoded in `teamCapacity()` in `matching-engine.ts` | Capacity limits by age group (U8: 10/12, U9-10: 12/14, U11-12: 16/18, U13-19: 18/22) |
+
+**What AI (Claude Haiku) specifically receives per player call:**
+
+```
+Player: {first_name} {last_name}
+New or returning: {new_or_returning}
+School/grade field: "{school_and_grade}"
+Current special request: "{special_request}"
+Previous season request: "{prev_special_request}"   ← only if found
+```
+
+**What AI returns:**
+
+```json
+{
+  "coaches":     ["last name or full name"],
+  "friends":     ["teammate names (not family)"],
+  "siblings":    ["names mentioned as brother/sister/sibling"],
+  "teams":       ["team nicknames"],
+  "school_name": "Clean School Name",
+  "notes":       "One sentence of important context, or empty string"
+}
+```
+
+**AI fallback rule:** If `extraction_coaches` field exists on the player record (even as an empty array), the scoring engine uses AI fields exclusively. If it is absent (AI hasn't run yet), all scoring falls back to raw text fuzzy matching on `special_request`. The page is fully functional before AI extraction runs.
+
 ### Scoring Engine — lib/matching-engine.ts
 
 `runScoring(season)` is called on every page load — no pre-computed results stored. Always reads live DynamoDB.
