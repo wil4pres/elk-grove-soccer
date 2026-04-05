@@ -1,4 +1,5 @@
 import { defineConfig } from '@playwright/test'
+import path from 'path'
 
 export default defineConfig({
   testDir: './tests',
@@ -10,6 +11,21 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [
-    { name: 'chromium', use: { browserName: 'chromium' } },
+    // ── Auth setup — runs once, saves session cookie ─────────────────────────
+    {
+      name: 'setup',
+      testMatch: /auth\.setup\.ts/,
+      use: { browserName: 'chromium' },
+    },
+
+    // ── All tests — reuse saved admin session ─────────────────────────────────
+    {
+      name: 'chromium',
+      use: {
+        browserName: 'chromium',
+        storageState: path.join(__dirname, 'playwright/.auth/admin.json'),
+      },
+      dependencies: ['setup'],
+    },
   ],
 })

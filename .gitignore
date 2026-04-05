@@ -46,3 +46,4 @@ matching/*.csv
 matching/*.html
 !matching/report.html
 platform/node_modules/
+playwright/.auth/
