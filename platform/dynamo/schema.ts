@@ -264,6 +264,15 @@ export interface CoachRecord {
   role: string            // "Head Coach", "Assistant Coach", etc.
 }
 
+/** egs-matching-state — tracks matching process to prevent concurrent runs */
+export interface MatchingStateRecord {
+  id: string              // PK — "matching"
+  status: 'idle' | 'running' | 'completed' | 'failed'
+  startedAt?: string      // ISO 8601
+  completedAt?: string
+  error?: string
+}
+
 // ─── Table creation ────────────────────────────────────────────────────────────
 
 const tableDefinitions = [
@@ -421,6 +430,16 @@ const tableDefinitions = [
   },
   {
     TableName: 'egs-coaches',
+    KeySchema: [
+      { AttributeName: 'id', KeyType: KeyType.HASH },
+    ],
+    AttributeDefinitions: [
+      { AttributeName: 'id', AttributeType: ScalarAttributeType.S },
+    ],
+    BillingMode: BillingMode.PAY_PER_REQUEST,
+  },
+  {
+    TableName: 'egs-matching-state',
     KeySchema: [
       { AttributeName: 'id', KeyType: KeyType.HASH },
     ],

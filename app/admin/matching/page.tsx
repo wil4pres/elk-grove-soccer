@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 
 type Status = 'idle' | 'loading' | 'processing' | 'done' | 'error'
+type MatchingProcessStatus = 'idle' | 'running' | 'completed' | 'failed'
 
 interface Suggestion { team: string; score: number; reasons: string[] }
 interface Recommendation { text: string; level: 'green' | 'yellow' | 'orange' | 'red' }
@@ -28,7 +29,10 @@ export default function MatchingPage() {
   const [logs, setLogs] = useState<{ type: string; msg: string }[]>([])
   const [showLog, setShowLog] = useState(false)
   const [error, setError] = useState('')
+  const [matchingStatus, setMatchingStatus] = useState<MatchingProcessStatus>('idle')
+  const [matchingError, setMatchingError] = useState('')
   const logEndRef = useRef<HTMLDivElement>(null)
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
@@ -60,8 +64,64 @@ export default function MatchingPage() {
     }
   }, [activeTab])
 
-  // Load data on mount
-  useEffect(() => { loadData() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // Check matching status
+  const checkMatchingStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/trigger-matching')
+      if (!res.ok) return
+      const state = await res.json()
+      setMatchingStatus(state.status)
+      if (state.status === 'completed' || state.status === 'failed') {
+        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
+        if (state.status === 'completed') {
+          setMatchingError('')
+          await loadData() // Reload results
+        } else {
+          setMatchingError(state.error || 'Matching failed')
+        }
+      }
+    } catch (e) {
+      console.error('Error checking matching status:', e)
+    }
+  }, [])
+
+  // Poll for matching status changes
+  useEffect(() => {
+    if (matchingStatus === 'running') {
+      checkMatchingStatus()
+      pollIntervalRef.current = setInterval(checkMatchingStatus, 2000)
+    }
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
+    }
+  }, [matchingStatus, checkMatchingStatus])
+
+  // Load data and check matching status on mount
+  useEffect(() => {
+    loadData()
+    checkMatchingStatus()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function triggerMatching() {
+    try {
+      const res = await fetch('/api/admin/trigger-matching', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        if (res.status === 409) {
+          setMatchingError('Matching already in progress')
+        } else {
+          setMatchingError(data.error || 'Failed to start matching')
+        }
+        return
+      }
+      setMatchingStatus('running')
+      setMatchingError('')
+      setShowLog(true)
+      setLogs([{ type: 'step', msg: 'Starting matching process...' }])
+    } catch (e) {
+      setMatchingError(e instanceof Error ? e.message : 'Failed to start matching')
+    }
+  }
 
   async function processPlayers() {
     setStatus('processing')
@@ -152,17 +212,20 @@ export default function MatchingPage() {
           <span className="text-xs opacity-70">Elk Grove Soccer — Team Assignment Suggestions</span>
           <div className="ml-auto flex items-center gap-3">
             <button
-              onClick={processPlayers}
-              disabled={isRunning}
+              onClick={triggerMatching}
+              disabled={matchingStatus === 'running'}
               className={`px-4 py-1.5 text-sm font-semibold text-white rounded-md transition-colors ${
-                isRunning ? 'bg-white/20 cursor-not-allowed' : 'bg-[#38bdf8] hover:bg-[#0ea5e9]'
+                matchingStatus === 'running' ? 'bg-white/20 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
               }`}
             >
-              {status === 'processing'
-                ? <><span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-2 align-middle" />Processing...</>
-                : 'Process Players'
+              {matchingStatus === 'running'
+                ? <><span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-2 align-middle" />Running...</>
+                : 'Generate Recommendations'
               }
             </button>
+            {matchingError && (
+              <span className="text-xs text-red-300">{matchingError}</span>
+            )}
             <button
               onClick={loadData}
               disabled={isRunning}
@@ -170,7 +233,7 @@ export default function MatchingPage() {
             >
               Refresh
             </button>
-            {logs.length > 0 && (
+            {(logs.length > 0 || matchingStatus === 'running') && (
               <button onClick={() => setShowLog(v => !v)} className="text-xs text-white/60 hover:text-white underline">
                 {showLog ? 'Hide log' : 'Show log'}
               </button>
