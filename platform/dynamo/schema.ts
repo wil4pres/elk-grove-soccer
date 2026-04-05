@@ -426,16 +426,6 @@ const tableDefinitions = [
     ],
     AttributeDefinitions: [
       { AttributeName: 'id', AttributeType: ScalarAttributeType.S },
-      { AttributeName: 'season', AttributeType: ScalarAttributeType.S },
-    ],
-    GlobalSecondaryIndexes: [
-      {
-        IndexName: 'season-index',
-        KeySchema: [
-          { AttributeName: 'season', KeyType: KeyType.HASH },
-        ],
-        Projection: { ProjectionType: ProjectionType.ALL },
-      },
     ],
     BillingMode: BillingMode.PAY_PER_REQUEST,
   },
