@@ -21,8 +21,9 @@ export function unauthorized() {
 }
 
 export function serverError(e: unknown) {
-  console.error(e)
-  return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  const msg = e instanceof Error ? e.message : String(e)
+  console.error('[serverError]', msg, e)
+  return NextResponse.json({ error: msg || 'Internal server error' }, { status: 500 })
 }
 
 export function requireAdminKey(req: Request): boolean {
