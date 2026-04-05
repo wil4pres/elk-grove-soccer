@@ -1,10 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Ensure the generated matching report is bundled with the server deployment
-  outputFileTracingIncludes: {
-    '/api/admin/matching-report': ['./matching/report.html'],
-  },
   env: {
     DYNAMO_ACCESS_KEY_ID: process.env.DYNAMO_ACCESS_KEY_ID ?? '',
     DYNAMO_SECRET_ACCESS_KEY: process.env.DYNAMO_SECRET_ACCESS_KEY ?? '',
