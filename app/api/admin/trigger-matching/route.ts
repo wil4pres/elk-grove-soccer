@@ -21,7 +21,12 @@ export async function GET(req: NextRequest) {
     const state = res.Item ?? { id: STATE_ID, status: 'idle' }
     return NextResponse.json(state)
   } catch (e) {
-    console.error('[trigger-matching] Error getting state:', e)
+    const msg = e instanceof Error ? e.message : String(e)
+    console.error('[trigger-matching] Error getting state:', msg, e)
+    // If table doesn't exist, return default idle state
+    if (msg.includes('ResourceNotFoundException') || msg.includes('does not exist')) {
+      return NextResponse.json({ id: STATE_ID, status: 'idle' })
+    }
     return NextResponse.json({ error: 'Failed to get state' }, { status: 500 })
   }
 }
@@ -67,8 +72,9 @@ export async function POST(req: NextRequest) {
       message: 'Matching process started in background',
     })
   } catch (e) {
-    console.error('[trigger-matching] Error:', e)
-    return NextResponse.json({ error: 'Failed to start matching' }, { status: 500 })
+    const msg = e instanceof Error ? e.message : String(e)
+    console.error('[trigger-matching] Error:', msg, e)
+    return NextResponse.json({ error: msg || 'Failed to start matching' }, { status: 500 })
   }
 }
 
