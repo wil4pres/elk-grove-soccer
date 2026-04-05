@@ -8,6 +8,7 @@ const STATE_ID = 'matching'
 const PLAYERS_TABLE = 'egs-players'
 const SEASON = '2026'
 const CENSUS_URL = 'https://geocoding.geo.census.gov/geocoder/locations/addressbatch'
+const ARCGIS_SCHOOLS_URL = 'https://webmaps.elkgrove.gov/arcgis/rest/services/OPEN_DATA_PORTAL/EGUSD_Schools/MapServer/0/query'
 const BATCH_SIZE = 1000
 const EXTRACTION_MODEL = 'claude-haiku-4-5-20251001'
 const SKIP_REQUESTS = new Set(['n/a', 'na', 'none', '-', 'no', 'no request', 'n a', ''])
@@ -180,6 +181,48 @@ async function triggerMatchingAsync() {
       console.log(`[matching:${runId}] All players already geocoded`)
     }
 
+    // ── School guess for players with nonsense school_and_grade ──────────────
+    const needSchoolGuess = players.filter(p =>
+      isNonsenseSchool(p.school_and_grade) &&
+      p.lat != null && p.lng != null &&
+      !p.extraction_school_guessed  // don't re-guess if already done
+    )
+    console.log(`[matching:${runId}] School guess: ${needSchoolGuess.length} players need school lookup`)
+
+    if (needSchoolGuess.length > 0) {
+      let schoolsLoaded = false
+      let guessed = 0
+      for (const p of needSchoolGuess) {
+        try {
+          if (!schoolsLoaded) {
+            await loadSchools()
+            schoolsLoaded = true
+            console.log(`[matching:${runId}] Loaded EGUSD school locations from ArcGIS`)
+          }
+          const grade = gradeFromBirthDate(p.birth_date ?? '', parseInt(SEASON))
+          if (grade < 0 || grade > 13) continue
+          const schoolName = await guessSchool(p.lat, p.lng, grade)
+          if (!schoolName) continue
+
+          await db.send(new UpdateCommand({
+            TableName: PLAYERS_TABLE,
+            Key: { player_id: p.player_id, season: SEASON },
+            UpdateExpression: 'SET extraction_school = :s, extraction_school_guessed = :g',
+            ExpressionAttributeValues: { ':s': schoolName, ':g': true },
+          }))
+          p.extraction_school = schoolName
+          p.extraction_school_guessed = true
+          guessed++
+          console.log(`[matching:${runId}] ${p.player_first_name} ${p.player_last_name}: Jarvis guessed school → ${schoolName} (grade ${grade}, "${p.school_and_grade}")`)
+        } catch (e) {
+          console.error(`[matching:${runId}] School guess failed for ${p.player_first_name} ${p.player_last_name}:`, e instanceof Error ? e.message : e)
+        }
+      }
+      console.log(`[matching:${runId}] School guess complete: ${guessed}/${needSchoolGuess.length} guessed`)
+    } else {
+      console.log(`[matching:${runId}] No school guesses needed`)
+    }
+
     // ── Load previous season players for historical context ──────────────────
     // Match by account_email + birth_date to find the same child from last year
     const prevSeason = String(parseInt(SEASON) - 1)
@@ -291,6 +334,98 @@ async function triggerMatchingAsync() {
 // ─── Geocoding helper ──────────────────────────────────────────────────────────
 
 interface GeoInput { player_id: string; address: string; city: string; state: string; zip: string }
+
+// ─── School lookup helpers ─────────────────────────────────────────────────────
+
+interface SchoolRecord { name: string; type: string; lat: number; lng: number }
+
+// Returns true when the school_and_grade value is useless — just a number or grade-only
+function isNonsenseSchool(s: string): boolean {
+  if (!s?.trim()) return true
+  const clean = s.trim().toLowerCase()
+  // Pure number: "3", "8"
+  if (/^\d+$/.test(clean)) return true
+  // Grade-only: "3rd grade", "4th", "6th grade", "grade 5", "8th"
+  if (/^(grade\s*)?\d+(st|nd|rd|th)(\s*grade)?$/.test(clean)) return true
+  if (/^grade\s*\d+$/.test(clean)) return true
+  return false
+}
+
+// Estimate grade level from birth_date and current season year
+function gradeFromBirthDate(birthDate: string, seasonYear: number): number {
+  // California cutoff: September 1. Soccer season is spring, so use fall of prior year.
+  const birthYear = parseInt(birthDate?.slice(0, 4) ?? '0')
+  const birthMonth = parseInt(birthDate?.slice(5, 7) ?? '1')
+  if (!birthYear) return 0
+  // Age as of September 1 of the school year start (seasonYear - 1 for spring season)
+  const schoolFallYear = seasonYear - 1
+  let age = schoolFallYear - birthYear
+  if (birthMonth >= 9) age-- // birthday after Sept 1 cutoff = one year younger
+  return age - 5 // K=5, 1st=6, 2nd=7, etc.
+}
+
+// Map grade to the SCH_TYPE values used in the EGUSD ArcGIS layer
+function schoolTypeFromGrade(grade: number): string[] {
+  if (grade <= 6) return ['ELEMENTARY', 'KTHRU8', 'PKTHRU8', 'KTHRU12']
+  if (grade <= 8) return ['MIDDLE', 'MIDDLE/HIGH', 'KTHRU8', 'PKTHRU8', 'KTHRU12']
+  return ['HIGH', 'MIDDLE/HIGH', 'KTHRU12']
+}
+
+// Load all EGUSD school locations from the public ArcGIS service (cached per run)
+let schoolCache: SchoolRecord[] | null = null
+async function loadSchools(): Promise<SchoolRecord[]> {
+  if (schoolCache) return schoolCache
+  const url = new URL(ARCGIS_SCHOOLS_URL)
+  url.searchParams.set('where', '1=1')
+  url.searchParams.set('outFields', 'SCH_NAME,SCH_TYPE')
+  url.searchParams.set('returnGeometry', 'true')
+  url.searchParams.set('outSR', '4326')
+  url.searchParams.set('f', 'json')
+  const res = await fetch(url.toString())
+  if (!res.ok) throw new Error(`ArcGIS schools HTTP ${res.status}`)
+  const json = await res.json()
+  const records: SchoolRecord[] = []
+  for (const f of json.features ?? []) {
+    const name: string = f.attributes?.SCH_NAME ?? ''
+    const type: string = f.attributes?.SCH_TYPE ?? ''
+    const rings: [number, number][][] = f.geometry?.rings ?? []
+    if (!name || !rings.length) continue
+    // Centroid = average of first ring's coordinates
+    const pts = rings[0]
+    const lng = pts.reduce((s, p) => s + p[0], 0) / pts.length
+    const lat = pts.reduce((s, p) => s + p[1], 0) / pts.length
+    records.push({ name, type, lat, lng })
+  }
+  schoolCache = records
+  return records
+}
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+// Find nearest school of the right type for a player's coordinates
+async function guessSchool(lat: number, lng: number, grade: number): Promise<string | null> {
+  const schools = await loadSchools()
+  const validTypes = new Set(schoolTypeFromGrade(grade))
+  const candidates = schools.filter(s => validTypes.has(s.type))
+  if (!candidates.length) return null
+  let nearest = candidates[0]
+  let minDist = haversineKm(lat, lng, nearest.lat, nearest.lng)
+  for (const s of candidates.slice(1)) {
+    const d = haversineKm(lat, lng, s.lat, s.lng)
+    if (d < minDist) { minDist = d; nearest = s }
+  }
+  return nearest.name
+}
+
+// ─── Geocoding helper ──────────────────────────────────────────────────────────
 
 async function geocodeBatch(batch: GeoInput[]): Promise<Map<string, { lat: number; lng: number }>> {
   const csv = batch

@@ -32,6 +32,7 @@ export interface MatchPlayer {
   extraction_siblings?: string[]
   extraction_teams?: string[]
   extraction_school?: string
+  extraction_school_guessed?: boolean
   extraction_notes?: string
   prev_team: string
   prev_season: string
@@ -151,6 +152,7 @@ export async function loadMatchingData(season: string) {
       extraction_siblings: p.extraction_siblings,
       extraction_teams: p.extraction_teams,
       extraction_school: p.extraction_school,
+      extraction_school_guessed: p.extraction_school_guessed,
       extraction_notes: p.extraction_notes,
       prev_team: prev?.team ?? '',
       prev_season: prev?.season ?? '',
@@ -391,7 +393,8 @@ function score(
     })
     if (sameSchool.length > 0) {
       total += 1
-      reasons.push(`Same school as ${sameSchool.length} teammate(s)`)
+      const guessLabel = player.extraction_school_guessed ? ` (Jarvis guess)` : ''
+      reasons.push(`Same school${guessLabel} as ${sameSchool.length} teammate(s)`)
     }
   }
 
@@ -437,7 +440,10 @@ function recommend(player: MatchPlayer, suggestions: Suggestion[], allPlayers: M
   const hasReq = req && !['n/a', 'na', 'none', '-'].includes(req.toLowerCase())
   const top = suggestions[0]
   const isNew = (player.new_or_returning || '').toLowerCase().includes('new')
-  const notes = player.extraction_notes
+  const jarvisSchoolNote = player.extraction_school_guessed && player.extraction_school
+    ? `Jarvis guessed school as "${player.extraction_school}" based on address distance — coordinator should verify`
+    : undefined
+  const notes = [player.extraction_notes, jarvisSchoolNote].filter(Boolean).join(' | ') || undefined
 
   // Sibling cross-age check — runs whether or not there are suggestions
   // Use AI-extracted siblings[] when available, fall back to regex
