@@ -55,7 +55,7 @@ async function deleteAllCoachesForSeason(season: string): Promise<void> {
       }),
     )
 
-    const items = res.Items ?? []
+    const items = (res.Items ?? []) as Array<{ id: string }>
     if (items.length > 0) {
       console.log(`[coaches] Found ${items.length} coaches to delete`)
       for (let i = 0; i < items.length; i += 25) {
@@ -63,7 +63,7 @@ async function deleteAllCoachesForSeason(season: string): Promise<void> {
         await db.send(
           new BatchWriteCommand({
             RequestItems: {
-              [TABLE]: batch.map(item => ({ DeleteRequest: { Key: { id: item.id } } })),
+              [TABLE]: batch.map(item => ({ DeleteRequest: { Key: { id: item.id as string } } })),
             },
           }),
         )
