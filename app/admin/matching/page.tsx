@@ -33,10 +33,14 @@ export default function MatchingPage() {
   const [matchingError, setMatchingError] = useState('')
   const logEndRef = useRef<HTMLDivElement>(null)
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const safetyTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = '' }
+    return () => {
+      document.body.style.overflow = ''
+      if (safetyTimeoutRef.current) clearTimeout(safetyTimeoutRef.current)
+    }
   }, [])
 
   useEffect(() => {
@@ -70,12 +74,17 @@ export default function MatchingPage() {
       const res = await fetch('/api/admin/trigger-matching')
       if (!res.ok) return
       const state = await res.json()
-      setMatchingStatus(state.status)
+      // Don't override local 'running' state with 'idle' — state table may not exist yet
+      // Only update if DynamoDB returns a meaningful state (running/completed/failed)
+      setMatchingStatus(prev => {
+        if (prev === 'running' && state.status === 'idle') return prev
+        return state.status
+      })
       if (state.status === 'completed' || state.status === 'failed') {
         if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
         if (state.status === 'completed') {
           setMatchingError('')
-          await loadData() // Reload results
+          loadData() // Reload results
         } else {
           setMatchingError(state.error || 'Matching failed')
         }
@@ -83,7 +92,7 @@ export default function MatchingPage() {
     } catch (e) {
       console.error('Error checking matching status:', e)
     }
-  }, [])
+  }, [loadData])
 
   // Poll for matching status changes
   useEffect(() => {
@@ -117,7 +126,12 @@ export default function MatchingPage() {
       setMatchingStatus('running')
       setMatchingError('')
       setShowLog(true)
-      setLogs([{ type: 'step', msg: 'Starting matching process...' }])
+      setLogs([{ type: 'step', msg: 'Starting geocoding + AI extraction in background...' }])
+      // Safety timeout: re-enable button after 10 min if polling never detects completion
+      if (safetyTimeoutRef.current) clearTimeout(safetyTimeoutRef.current)
+      safetyTimeoutRef.current = setTimeout(() => {
+        setMatchingStatus(prev => prev === 'running' ? 'idle' : prev)
+      }, 10 * 60 * 1000)
     } catch (e) {
       setMatchingError(e instanceof Error ? e.message : 'Failed to start matching')
     }
