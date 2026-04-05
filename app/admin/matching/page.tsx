@@ -30,6 +30,8 @@ export default function MatchingPage() {
   const [matchingStatus, setMatchingStatus] = useState<MatchingProcessStatus>('idle')
   const [matchingError, setMatchingError] = useState('')
   const [completedTime, setCompletedTime] = useState('')
+  const [startedAt, setStartedAt] = useState<Date | null>(null)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -68,26 +70,44 @@ export default function MatchingPage() {
         if (prev === 'running' && state.status === 'idle') return prev
         return state.status
       })
+      if (state.status === 'running' && state.startedAt) {
+        setStartedAt(new Date(state.startedAt))
+      }
       if (state.status === 'completed' || state.status === 'failed') {
         if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
+        setStartedAt(null)
+        setElapsedSeconds(0)
         if (state.status === 'failed') {
           setMatchingError(state.error || 'Matching failed')
         } else {
-          // Show completed state with timestamp, then reset to idle after 8s
           const completedAt = state.completedAt
             ? new Date(state.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
             : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
           setCompletedTime(completedAt)
-          setTimeout(() => {
-            setMatchingStatus('idle')
-            setCompletedTime('')
-          }, 8000)
+          setTimeout(() => { setMatchingStatus('idle'); setCompletedTime('') }, 8000)
         }
       }
     } catch (e) {
       console.error('Error checking matching status:', e)
     }
   }, [])
+
+  // Elapsed timer while running
+  useEffect(() => {
+    if (matchingStatus !== 'running') return
+    const t = setInterval(() => {
+      setElapsedSeconds(startedAt ? Math.floor((Date.now() - startedAt.getTime()) / 1000) : 0)
+    }, 1000)
+    return () => clearInterval(t)
+  }, [matchingStatus, startedAt])
+
+  async function resetStuckJob() {
+    await fetch('/api/admin/trigger-matching', { method: 'DELETE' })
+    setMatchingStatus('idle')
+    setMatchingError('')
+    setStartedAt(null)
+    setElapsedSeconds(0)
+  }
 
   // Poll matching status when running
   useEffect(() => {
@@ -120,6 +140,8 @@ export default function MatchingPage() {
         return
       }
       setMatchingStatus('running')
+      setStartedAt(new Date())
+      setElapsedSeconds(0)
     } catch (e) {
       setMatchingError(e instanceof Error ? e.message : 'Failed to start matching')
     }
@@ -130,7 +152,7 @@ export default function MatchingPage() {
   return (
     <>
     {/* Floating trigger button — always visible */}
-    <div style={{ position: 'fixed', top: 60, right: 16, zIndex: 9999 }}>
+    <div style={{ position: 'fixed', top: 60, right: 16, zIndex: 9999, textAlign: 'right' }}>
       <button
         onClick={triggerMatching}
         disabled={matchingStatus === 'running'}
@@ -146,11 +168,26 @@ export default function MatchingPage() {
           boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
         }}
       >
-        {matchingStatus === 'running' ? '⏳ Running...' : matchingStatus === 'completed' ? `✓ Done — ${completedTime}` : '▶ Generate Recommendations'}
+        {matchingStatus === 'running'
+          ? `⏳ Running… ${elapsedSeconds}s`
+          : matchingStatus === 'completed'
+          ? `✓ Done — ${completedTime}`
+          : '▶ Generate Recommendations'}
       </button>
+      {matchingStatus === 'running' && elapsedSeconds > 120 && (
+        <div style={{ marginTop: 4, fontSize: 11, color: '#f59e0b' }}>
+          Taking a while…{' '}
+          <button onClick={resetStuckJob} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 11, textDecoration: 'underline', padding: 0 }}>
+            Reset stuck job
+          </button>
+        </div>
+      )}
       {matchingError && (
         <div style={{ background: '#fee2e2', color: '#b91c1c', borderRadius: 6, padding: '6px 10px', marginTop: 6, fontSize: 12 }}>
-          {matchingError}
+          {matchingError}{' '}
+          <button onClick={resetStuckJob} style={{ background: 'none', border: 'none', color: '#b91c1c', cursor: 'pointer', fontSize: 12, textDecoration: 'underline', padding: 0 }}>
+            Reset &amp; retry
+          </button>
         </div>
       )}
     </div>

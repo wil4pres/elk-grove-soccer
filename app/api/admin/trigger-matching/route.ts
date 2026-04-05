@@ -76,12 +76,33 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    return NextResponse.json(await getState())
+    const state = await getState()
+
+    // Auto-recover stuck jobs: if running for more than 15 minutes, mark as failed
+    if (state.status === 'running' && state.startedAt) {
+      const elapsed = Date.now() - new Date(state.startedAt as string).getTime()
+      if (elapsed > 15 * 60 * 1000) {
+        const recovered = { status: 'failed', error: 'Job timed out — the serverless function was likely killed. Click Generate to retry.', completedAt: new Date().toISOString() }
+        await setState(recovered)
+        return NextResponse.json({ id: STATE_ID, ...recovered })
+      }
+    }
+
+    return NextResponse.json(state)
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     console.error('[matching] GET state error:', msg)
     return NextResponse.json({ id: STATE_ID, status: 'idle' })
   }
+}
+
+// DELETE — force reset a stuck running state back to idle
+export async function DELETE(req: NextRequest) {
+  if (!(await verifySession())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  await setState({ status: 'idle', resetAt: new Date().toISOString() })
+  return NextResponse.json({ status: 'idle' })
 }
 
 export async function POST(req: NextRequest) {
@@ -92,7 +113,15 @@ export async function POST(req: NextRequest) {
   try {
     const currentState = await getState()
     if (currentState?.status === 'running') {
-      return NextResponse.json({ error: 'Matching already in progress' }, { status: 409 })
+      // Allow override if it's been stuck for more than 15 minutes
+      if (currentState.startedAt) {
+        const elapsed = Date.now() - new Date(currentState.startedAt as string).getTime()
+        if (elapsed <= 15 * 60 * 1000) {
+          return NextResponse.json({ error: 'Matching already in progress' }, { status: 409 })
+        }
+      } else {
+        return NextResponse.json({ error: 'Matching already in progress' }, { status: 409 })
+      }
     }
 
     await setState({ status: 'running', startedAt: new Date().toISOString() })
