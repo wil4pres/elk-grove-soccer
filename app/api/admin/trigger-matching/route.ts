@@ -180,12 +180,35 @@ async function triggerMatchingAsync() {
       console.log(`[matching:${runId}] All players already geocoded`)
     }
 
+    // ── Load previous season players for historical context ──────────────────
+    // Match by account_email + birth_date to find the same child from last year
+    const prevSeason = String(parseInt(SEASON) - 1)
+    const prevPlayers: Record<string, any>[] = []
+    let prevKey: Record<string, unknown> | undefined
+    do {
+      const res = await db.send(new ScanCommand({
+        TableName: PLAYERS_TABLE,
+        FilterExpression: 'season = :s',
+        ExpressionAttributeValues: { ':s': prevSeason },
+        ExclusiveStartKey: prevKey,
+      }))
+      for (const item of res.Items ?? []) prevPlayers.push(item)
+      prevKey = res.LastEvaluatedKey as Record<string, unknown> | undefined
+    } while (prevKey)
+    console.log(`[matching:${runId}] Loaded ${prevPlayers.length} players from ${prevSeason} for history`)
+
+    // Build lookup: "email|birthdate" → prev special_request
+    const prevRequestMap = new Map<string, string>()
+    for (const p of prevPlayers) {
+      if (p.account_email && p.birth_date && p.special_request) {
+        prevRequestMap.set(`${p.account_email}|${p.birth_date}`, p.special_request)
+      }
+    }
+
     // ── AI Extraction ─────────────────────────────────────────────────────────
-    const needExtract = players.filter(
-      p => p.special_request &&
-           !SKIP_REQUESTS.has((p.special_request || '').toLowerCase().trim()) &&
-           !p.extraction_coaches
-    )
+    // Re-extract if school_and_grade changed (extraction_school missing) or if
+    // extraction has never run. Always extract even if no special_request (school parsing).
+    const needExtract = players.filter(p => !p.extraction_coaches)
     console.log(`[matching:${runId}] AI extraction: ${needExtract.length} players need extraction`)
 
     if (needExtract.length > 0) {
@@ -200,26 +223,47 @@ async function triggerMatchingAsync() {
 
         for (const p of needExtract) {
           try {
-            const ex = await extractRequest(client, p.player_first_name ?? '', p.player_last_name ?? '', p.special_request)
+            const prevReq = prevRequestMap.get(`${p.account_email}|${p.birth_date}`) ?? null
+            const ex = await extractRequest(client, {
+              firstName: p.player_first_name ?? '',
+              lastName: p.player_last_name ?? '',
+              specialRequest: p.special_request ?? '',
+              prevSpecialRequest: prevReq,
+              schoolAndGrade: p.school_and_grade ?? '',
+              newOrReturning: p.new_or_returning ?? '',
+            })
 
             await db.send(new UpdateCommand({
               TableName: PLAYERS_TABLE,
               Key: { player_id: p.player_id, season: SEASON },
-              UpdateExpression: 'SET extraction_coaches = :c, extraction_friends = :f, extraction_teams = :t, extraction_notes = :n',
+              UpdateExpression: 'SET extraction_coaches = :c, extraction_friends = :f, extraction_siblings = :sb, extraction_teams = :t, extraction_school = :sc, extraction_notes = :n',
               ExpressionAttributeValues: {
                 ':c': ex.coaches ?? [],
                 ':f': ex.friends ?? [],
+                ':sb': ex.siblings ?? [],
                 ':t': ex.teams ?? [],
+                ':sc': ex.school_name ?? '',
                 ':n': ex.notes ?? '',
               },
             }))
+
+            // Update in-memory record so scorer sees latest data immediately
+            p.extraction_coaches = ex.coaches ?? []
+            p.extraction_friends = ex.friends ?? []
+            p.extraction_siblings = ex.siblings ?? []
+            p.extraction_teams = ex.teams ?? []
+            p.extraction_school = ex.school_name ?? ''
+            p.extraction_notes = ex.notes ?? ''
 
             ok++
             const parts = []
             if (ex.coaches.length) parts.push(`coaches: ${ex.coaches.join(', ')}`)
             if (ex.friends.length) parts.push(`friends: ${ex.friends.join(', ')}`)
+            if (ex.siblings.length) parts.push(`siblings: ${ex.siblings.join(', ')}`)
             if (ex.teams.length) parts.push(`teams: ${ex.teams.join(', ')}`)
-            console.log(`[matching:${runId}] ${p.player_first_name} ${p.player_last_name}: ${parts.length ? parts.join(' | ') : '(no extractable request)'}`)
+            if (ex.school_name) parts.push(`school: ${ex.school_name}`)
+            if (ex.notes) parts.push(`notes: ${ex.notes}`)
+            console.log(`[matching:${runId}] ${p.player_first_name} ${p.player_last_name}: ${parts.length ? parts.join(' | ') : '(no extractable data)'}`)
           } catch (e) {
             failed++
             console.error(`[matching:${runId}] Extraction failed for ${p.player_first_name} ${p.player_last_name}:`, e instanceof Error ? e.message : e)
@@ -232,7 +276,7 @@ async function triggerMatchingAsync() {
         console.log(`[matching:${runId}] AI extraction complete: ${ok} succeeded, ${failed} failed`)
       }
     } else {
-      console.log(`[matching:${runId}] All special requests already extracted`)
+      console.log(`[matching:${runId}] All players already extracted`)
     }
 
     await setState({ status: 'completed', completedAt: new Date().toISOString() })
@@ -280,27 +324,50 @@ async function geocodeBatch(batch: GeoInput[]): Promise<Map<string, { lat: numbe
 
 // ─── AI extraction helper ──────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You extract structured information from youth soccer registration special requests.
+const SYSTEM_PROMPT = `You extract structured information from youth soccer registration data.
 Return ONLY valid JSON with these keys:
-  coaches: string[]   — coach full names or last names mentioned
-  friends: string[]   — player/child names mentioned as friend/teammate requests
-  teams:   string[]   — team nicknames mentioned
-  notes:   string     — one short sentence if there is important context not captured above, else ""
+  coaches:     string[]  — coach last names or full names explicitly requested
+  friends:     string[]  — player/child names requested as friend or teammate (NOT family/siblings)
+  siblings:    string[]  — names mentioned as brother, sister, or sibling (family placement)
+  teams:       string[]  — team nicknames mentioned
+  school_name: string    — clean school name parsed from the school field, or "" if not present
+  notes:       string    — one short sentence capturing important context not covered above (scheduling constraints, play-up requests, strong preferences), else ""
 
 Rules:
-- Include a name even if only partially mentioned (last name only is fine)
-- Do NOT include the registering player's own name
-- If nothing fits a category, return an empty array []
+- Do NOT include the registering player's own name in any list
+- If a request says "brother", "sister", or "sibling", put that name in siblings NOT friends
+- For school_name: extract just the school name, drop grade/year info. E.g. "Kerr Middle school - 8th grade" → "Kerr Middle School"
+- If prev_special_request is provided and this season's request is empty or vague, use the previous request to infer coaches/friends/teams the family has historically wanted — add a note if you're drawing from history
+- If nothing fits a category, return [] or ""
 - Return raw JSON only, no markdown fences`
 
-interface Extraction { coaches: string[]; friends: string[]; teams: string[]; notes: string }
+interface Extraction { coaches: string[]; friends: string[]; siblings: string[]; teams: string[]; school_name: string; notes: string }
 
-async function extractRequest(client: any, firstName: string, lastName: string, request: string): Promise<Extraction> {
+interface ExtractionInput {
+  firstName: string
+  lastName: string
+  specialRequest: string
+  prevSpecialRequest: string | null
+  schoolAndGrade: string
+  newOrReturning: string
+}
+
+async function extractRequest(client: any, input: ExtractionInput): Promise<Extraction> {
+  const lines = [
+    `Player: ${input.firstName} ${input.lastName}`,
+    `New or returning: ${input.newOrReturning || 'unknown'}`,
+    `School/grade field: "${input.schoolAndGrade}"`,
+    `Current special request: "${input.specialRequest || 'none'}"`,
+  ]
+  if (input.prevSpecialRequest) {
+    lines.push(`Previous season request: "${input.prevSpecialRequest}"`)
+  }
+
   const msg = await client.messages.create({
     model: EXTRACTION_MODEL,
-    max_tokens: 256,
+    max_tokens: 300,
     system: SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: `Player: ${firstName} ${lastName}\nSpecial request: "${request}"` }],
+    messages: [{ role: 'user', content: lines.join('\n') }],
   })
 
   const text = (msg.content[0] as any).text.trim()

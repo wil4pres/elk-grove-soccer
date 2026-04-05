@@ -29,7 +29,9 @@ export interface MatchPlayer {
   lng?: number
   extraction_coaches?: string[]
   extraction_friends?: string[]
+  extraction_siblings?: string[]
   extraction_teams?: string[]
+  extraction_school?: string
   extraction_notes?: string
   prev_team: string
   prev_season: string
@@ -146,7 +148,9 @@ export async function loadMatchingData(season: string) {
       lng: p.lng,
       extraction_coaches: p.extraction_coaches,
       extraction_friends: p.extraction_friends,
+      extraction_siblings: p.extraction_siblings,
       extraction_teams: p.extraction_teams,
+      extraction_school: p.extraction_school,
       extraction_notes: p.extraction_notes,
       prev_team: prev?.team ?? '',
       prev_season: prev?.season ?? '',
@@ -174,6 +178,33 @@ export async function loadMatchingData(season: string) {
 
 function norm(s: string): string {
   return s.toLowerCase().replace(/['\u2019\-.]/g, '')
+}
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+// Detects "(brother)", "(sister)", "(siblings)" etc. in a special request
+function detectSiblingRequest(req: string): { name: string; relation: string } | null {
+  const m = req.match(/(?:player[-\s]*)?([A-Za-z]+(?:\s+[A-Za-z]+)+?)\s*\((brothers?|sisters?|siblings?)\)/i)
+  if (!m) return null
+  return { name: m[1].trim(), relation: m[2].toLowerCase() }
+}
+
+function findSibling(name: string, excludeId: string, allPlayers: MatchPlayer[]): MatchPlayer | null {
+  const nl = name.toLowerCase()
+  return allPlayers.find(p => {
+    if (p.player_id === excludeId) return false
+    const full = `${p.first_name} ${p.last_name}`.toLowerCase()
+    return full === nl ||
+      full.includes(nl) ||
+      (nl.includes(p.last_name.toLowerCase()) && p.last_name.length > 2 && nl.includes(p.first_name.toLowerCase()))
+  }) ?? null
 }
 
 function getTeamsForPackage(pkg: string, teams: MatchTeam[], seasonYear: number): MatchTeam[] {
@@ -212,10 +243,21 @@ function score(
 ): Suggestion {
   const reasons: string[] = []
   let total = 0
-  const req = (player.special_request || '').toLowerCase()
+
+  // Whether AI extraction has run for this player
+  const aiRan = Array.isArray(player.extraction_coaches)
+
+  // Raw text fallbacks (used only when AI hasn't run yet)
+  const reqRaw = (player.special_request || '').toLowerCase()
   const reqNorm = norm(player.special_request || '')
 
-  // +3 previous team match
+  // AI-extracted lists (empty arrays when not yet extracted)
+  const aiCoaches  = (player.extraction_coaches  ?? []).map(norm)
+  const aiFriends  = (player.extraction_friends  ?? []).map(norm)
+  const aiSiblings = (player.extraction_siblings ?? []).map(norm)
+  const aiTeams    = (player.extraction_teams    ?? []).map(s => s.toLowerCase())
+
+  // ── +3 previous team match ───────────────────────────────────────────────────
   if (player.prev_team && player.prev_team === team.team_name) {
     total += 3
     reasons.push('Returning to same team')
@@ -226,45 +268,67 @@ function score(
     }
   }
 
-  // +3 coach name match
-  if (team.coach_last_name && team.coach_last_name.length > 2) {
-    const coachNorm = norm(team.coach_last_name)
-    if (reqNorm.includes(coachNorm)) {
-      total += 3
-      reasons.push(`Requested coach "${team.coach_last_name}"`)
-    }
+  // ── +3 coach name match ──────────────────────────────────────────────────────
+  const coachMatched = (() => {
+    if (!team.coach_last_name || team.coach_last_name.length <= 2) return false
+    const cn = norm(team.coach_last_name)
+    if (aiRan) return aiCoaches.some(c => c.includes(cn) || cn.includes(c))
+    return reqNorm.includes(cn)
+  })()
+  if (coachMatched) {
+    total += 3
+    reasons.push(`Requested coach "${team.coach_last_name}"`)
   }
 
-  // Also check coaches from previous season teams with same name
-  if (!reasons.some(r => r.includes('Requested coach'))) {
+  // Also check same-name team's coach from previous season
+  if (!coachMatched) {
     const prevTeam = prevTeams.find(t => t.team_name === team.team_name)
     if (prevTeam?.coach_last_name && prevTeam.coach_last_name.length > 2) {
-      if (reqNorm.includes(norm(prevTeam.coach_last_name))) {
+      const pcn = norm(prevTeam.coach_last_name)
+      const prevCoachMatched = aiRan
+        ? aiCoaches.some(c => c.includes(pcn) || pcn.includes(c))
+        : reqNorm.includes(pcn)
+      if (prevCoachMatched) {
         total += 3
         reasons.push(`Requested coach "${prevTeam.coach_last_name}"`)
       }
     }
   }
 
-  // +2 team nickname
+  // ── +2 team nickname ─────────────────────────────────────────────────────────
   const nickMatch = team.team_name.match(/\d{4}[BG]\s+(.+?)\s+\(/) ||
                     team.team_name.match(/U\d+\s*[BG]\s+(.+?)\s+\(/)
   if (nickMatch) {
     const nickLower = nickMatch[1].toLowerCase()
     const nickWords = nickLower.split(/\s+/).filter(w => w.length > 4)
-    if (req.includes(nickLower) || nickWords.some(w => req.includes(w))) {
+    const teamReqMatched = aiRan
+      ? aiTeams.some(t => t.includes(nickLower) || nickWords.some(w => t.includes(w)) || nickLower.includes(t))
+      : (reqRaw.includes(nickLower) || nickWords.some(w => reqRaw.includes(w)))
+    if (teamReqMatched) {
       total += 2
       reasons.push(`Requested team "${nickMatch[1]}"`)
     }
   }
 
-  // +2/+4 friend/player request
+  // ── +2/+4 friend / player request ───────────────────────────────────────────
   for (const tp of allPlayers.filter(p => p.player_id !== player.player_id)) {
-    const fLast = norm(tp.last_name)
+    const fLast  = norm(tp.last_name)
     const fFirst = norm(tp.first_name)
-    if ((fLast.length > 2 && reqNorm.includes(fLast)) || (fFirst.length > 3 && reqNorm.includes(fFirst))) {
+    const fFull  = norm(`${tp.first_name} ${tp.last_name}`)
+
+    const friendMatched = aiRan
+      ? aiFriends.some(f => f.includes(fLast) || f.includes(fFirst) || fFull.includes(f))
+      : ((fLast.length > 2 && reqNorm.includes(fLast)) || (fFirst.length > 3 && reqNorm.includes(fFirst)))
+
+    if (friendMatched) {
       if (tp.prev_team === team.team_name) {
-        const isMutual = norm(tp.special_request || '').includes(norm(player.last_name))
+        // Check if mutual: other player also lists this player as a friend
+        const tpFriends = (tp.extraction_friends ?? []).map(norm)
+        const tpAiRan = Array.isArray(tp.extraction_friends)
+        const pLast = norm(player.last_name)
+        const isMutual = tpAiRan
+          ? tpFriends.some(f => f.includes(pLast) || f.includes(norm(player.first_name)))
+          : norm(tp.special_request || '').includes(pLast)
         total += isMutual ? 4 : 2
         reasons.push(`${isMutual ? 'Mutual' : 'One-way'} friend: ${tp.first_name} ${tp.last_name}`)
       } else if (!tp.prev_team && !reasons.some(r => r.includes(tp.first_name))) {
@@ -273,30 +337,73 @@ function score(
     }
   }
 
-  // +2 sibling on team
+  // ── +2 sibling on team (same account email, automatic) ───────────────────────
   if (player.account_email) {
-    const siblings = allPlayers.filter(
+    const emailSiblings = allPlayers.filter(
       p => p.player_id !== player.player_id &&
            p.account_email === player.account_email &&
            p.prev_team === team.team_name
     )
-    if (siblings.length > 0) {
+    if (emailSiblings.length > 0) {
       total += 2
       reasons.push('Sibling on this team')
     }
   }
 
-  // +1 same school
-  if (player.school_and_grade && player.school_and_grade.length > 4) {
-    const schoolWords = player.school_and_grade.toLowerCase().split(/\s+/).filter(w => w.length > 4)
-    const teamPlayers = allPlayers.filter(p => p.player_id !== player.player_id && p.prev_team === team.team_name)
+  // ── Brother/sister request by name ──────────────────────────────────────────
+  // Use AI-extracted siblings[] if available, else fall back to regex
+  const siblingNames: string[] = aiRan
+    ? (player.extraction_siblings ?? [])
+    : (() => {
+        const r = detectSiblingRequest(player.special_request || '')
+        return r ? [r.name] : []
+      })()
+
+  for (const sibName of siblingNames) {
+    const sib = findSibling(sibName, player.player_id, allPlayers)
+    if (sib && sib.package_name === player.package_name) {
+      if (sib.prev_team === team.team_name) {
+        total += 5
+        reasons.push(`Sibling request: ${sib.first_name} ${sib.last_name} was on this team — place together`)
+      } else {
+        total += 2
+        reasons.push(`Sibling request: ${sib.first_name} ${sib.last_name} in same age group — place on same team`)
+      }
+    }
+    // Cross-age case handled in recommend()
+  }
+
+  // ── +1 same school ───────────────────────────────────────────────────────────
+  const teamPlayers = allPlayers.filter(p => p.player_id !== player.player_id && p.prev_team === team.team_name)
+
+  const playerSchool = player.extraction_school?.trim()
+    ? norm(player.extraction_school)
+    : player.school_and_grade?.length > 4
+      ? norm(player.school_and_grade).split(/\s+/).filter(w => w.length > 4).join(' ')
+      : null
+
+  if (playerSchool) {
     const sameSchool = teamPlayers.filter(tp => {
-      const tpSchool = (tp.school_and_grade || '').toLowerCase()
-      return schoolWords.some(w => tpSchool.includes(w))
+      const tpSchool = tp.extraction_school?.trim()
+        ? norm(tp.extraction_school)
+        : norm(tp.school_and_grade || '')
+      return tpSchool.length > 4 && (tpSchool.includes(playerSchool) || playerSchool.includes(tpSchool))
     })
     if (sameSchool.length > 0) {
       total += 1
       reasons.push(`Same school as ${sameSchool.length} teammate(s)`)
+    }
+  }
+
+  // ── +1 proximity (within 5 km / ~3 miles of 2+ teammates) ───────────────────
+  if (player.lat != null && player.lng != null) {
+    const nearbyTeammates = teamPlayers.filter(tp =>
+      tp.lat != null && tp.lng != null &&
+      haversineKm(player.lat!, player.lng!, tp.lat!, tp.lng!) <= 5
+    )
+    if (nearbyTeammates.length >= 2) {
+      total += 1
+      reasons.push(`Lives near ${nearbyTeammates.length} teammate(s) on this team`)
     }
   }
 
@@ -320,18 +427,53 @@ function getSuggestions(
 
 // ─── AI recommendation ─────────────────────────────────────────────────────────
 
-function recommend(player: MatchPlayer, suggestions: Suggestion[]): Recommendation {
+function withNotes(rec: Recommendation, notes: string | undefined): Recommendation {
+  if (!notes?.trim()) return rec
+  return { ...rec, text: `${rec.text} — Note: ${notes.trim()}` }
+}
+
+function recommend(player: MatchPlayer, suggestions: Suggestion[], allPlayers: MatchPlayer[]): Recommendation {
   const req = (player.special_request || '').trim()
   const hasReq = req && !['n/a', 'na', 'none', '-'].includes(req.toLowerCase())
   const top = suggestions[0]
   const isNew = (player.new_or_returning || '').toLowerCase().includes('new')
+  const notes = player.extraction_notes
+
+  // Sibling cross-age check — runs whether or not there are suggestions
+  // Use AI-extracted siblings[] when available, fall back to regex
+  const aiRan = Array.isArray(player.extraction_coaches)
+  const siblingNames: string[] = aiRan
+    ? (player.extraction_siblings ?? [])
+    : (() => { const r = detectSiblingRequest(req); return r ? [r.name] : [] })()
+
+  for (const sibName of siblingNames) {
+    const sib = findSibling(sibName, player.player_id, allPlayers)
+    if (sib && sib.package_name !== player.package_name) {
+      return {
+        level: 'red',
+        text: `Sibling request: ${sib.first_name} ${sib.last_name} is registered in ${sib.package_name} (different age group). One player must PLAY UP to be on the same team — only play-ups are allowed, no play-downs. Coordinator must decide which player moves up.`,
+      }
+    }
+  }
+
+  // Keep legacy sibReq for fallback recommendation text below
+  const sibReq = detectSiblingRequest(req)
+
+  const w = (rec: Recommendation) => withNotes(rec, notes)
 
   if (!suggestions.length) {
+    if (siblingNames.length > 0) {
+      const sib = findSibling(siblingNames[0], player.player_id, allPlayers)
+      if (sib) {
+        return w({ level: 'yellow', text: `Sibling request for ${sib.first_name} ${sib.last_name} — same age group, but no team anchor found yet. Assign both to the same team when placing.` })
+      }
+      return w({ level: 'yellow', text: `Sibling request for "${siblingNames[0]}" — player not found in current season registrations. Coordinator should verify.` })
+    }
     if (isNew && !hasReq)
-      return { level: 'orange', text: 'New player with no request — assign based on school/zip or coordinator preference.' }
+      return w({ level: 'orange', text: 'New player with no request — assign based on school/zip or coordinator preference.' })
     if (hasReq)
-      return { level: 'red', text: `Request "${req}" could not be matched to a known team or coach. Manual lookup required.` }
-    return { level: 'orange', text: 'No match found. Place manually based on availability.' }
+      return w({ level: 'red', text: `Request "${req}" could not be matched to a known team or coach. Manual lookup required.` })
+    return w({ level: 'orange', text: 'No match found. Place manually based on availability.' })
   }
 
   const reasons = top.reasons
@@ -341,47 +483,56 @@ function recommend(player: MatchPlayer, suggestions: Suggestion[]): Recommendati
   const hasTeamReq = reasons.some(r => r.includes('Requested team'))
   const hasMutual = reasons.some(r => r.includes('Mutual friend'))
   const hasOneway = reasons.some(r => r.includes('One-way friend'))
-  const hasSibling = reasons.some(r => r.includes('Sibling'))
+  const hasSiblingEmail = reasons.some(r => r === 'Sibling on this team')
+  const hasSiblingNamedTogether = reasons.some(r => r.includes('place together'))
+  const hasSiblingNamedSameAge = reasons.some(r => r.includes('same age group'))
   const hasSchool = reasons.some(r => r.includes('school'))
+  const hasProximity = reasons.some(r => r.includes('Lives near'))
 
   if (hasPlayingUp)
-    return { level: 'yellow', text: `Previously on ${top.team} but age group differs — coordinator verify if playing up again.` }
+    return w({ level: 'yellow', text: `Previously on ${top.team} but age group differs — coordinator verify if playing up again.` })
 
-  if (hasPrevTeam && hasReq && !hasCoachReq && !hasTeamReq)
-    return { level: 'yellow', text: `Was on ${player.prev_team} last year but has a new request ("${req}"). Confirm with family before reassigning.` }
+  if (hasPrevTeam && hasReq && !hasCoachReq && !hasTeamReq && !hasSiblingNamedTogether && !hasSiblingNamedSameAge)
+    return w({ level: 'yellow', text: `Was on ${player.prev_team} last year but has a new request ("${req}"). Confirm with family before reassigning.` })
+
+  if (hasSiblingNamedTogether)
+    return w({ level: 'green', text: `Assign to ${top.team}. Sibling request — both players were on this team. Keep together.` })
+
+  if (hasSiblingNamedSameAge)
+    return w({ level: 'green', text: `Assign to ${top.team}. Sibling request in same age group — place on same team.` })
 
   if (top.score >= 6 && hasPrevTeam && (hasCoachReq || hasTeamReq))
-    return { level: 'green', text: `Assign to ${top.team}. Returning player who also requested this coach/team — strong alignment.` }
+    return w({ level: 'green', text: `Assign to ${top.team}. Returning player who also requested this coach/team — strong alignment.` })
 
   if (top.score >= 5 && hasPrevTeam && !hasReq)
-    return { level: 'green', text: `Return to ${top.team}. Same team as last year, no change requested.` }
+    return w({ level: 'green', text: `Return to ${top.team}. Same team as last year, no change requested.` })
 
   if (top.score >= 5 && (hasCoachReq || hasTeamReq))
-    return { level: 'green', text: `Assign to ${top.team}. Player explicitly requested this ${hasCoachReq ? 'coach' : 'team'}.` }
+    return w({ level: 'green', text: `Assign to ${top.team}. Player explicitly requested this ${hasCoachReq ? 'coach' : 'team'}.` })
 
   if (top.score >= 5 && hasMutual) {
     const mutualCount = reasons.filter(r => r.includes('Mutual')).length
-    return { level: 'green', text: `Place on ${top.team}. Part of a mutual friend group (${mutualCount} mutual request${mutualCount > 1 ? 's' : ''}).` }
+    return w({ level: 'green', text: `Place on ${top.team}. Part of a mutual friend group (${mutualCount} mutual request${mutualCount > 1 ? 's' : ''}).` })
   }
 
-  if (hasSibling)
-    return { level: 'green', text: `Assign to ${top.team}. Sibling already on this team — keep family together.` }
+  if (hasSiblingEmail)
+    return w({ level: 'green', text: `Assign to ${top.team}. Sibling already on this team — keep family together.` })
 
-  if (top.score >= 3 && (hasOneway || hasSchool)) {
-    const detail = hasOneway ? 'friend request' : 'shared school'
-    return { level: 'yellow', text: `Consider ${top.team} based on ${detail}. Score ${top.score}/10 — verify with coordinator.` }
+  if (top.score >= 3 && (hasOneway || hasSchool || hasProximity)) {
+    const details = [hasOneway && 'friend request', hasSchool && 'shared school', hasProximity && 'proximity'].filter(Boolean).join(' + ')
+    return w({ level: 'yellow', text: `Consider ${top.team} based on ${details}. Score ${top.score}/10 — verify with coordinator.` })
   }
 
   if (isNew && hasReq && (hasCoachReq || hasTeamReq))
-    return { level: 'green', text: `New player — assign to ${top.team} per their request.` }
+    return w({ level: 'green', text: `New player — assign to ${top.team} per their request.` })
 
   if (isNew)
-    return { level: 'yellow', text: `New player. Best available match is ${top.team} (score ${top.score}/10). Coordinator should confirm.` }
+    return w({ level: 'yellow', text: `New player. Best available match is ${top.team} (score ${top.score}/10). Coordinator should confirm.` })
 
   if (top.score <= 2)
-    return { level: 'orange', text: `Weak signals only (score ${top.score}/10). Best guess: ${top.team}. Recommend coordinator review.` }
+    return w({ level: 'orange', text: `Weak signals only (score ${top.score}/10). Best guess: ${top.team}. Recommend coordinator review.` })
 
-  return { level: 'yellow', text: `Suggest ${top.team} (score ${top.score}/10). Review reasons before confirming.` }
+  return w({ level: 'yellow', text: `Suggest ${top.team} (score ${top.score}/10). Review reasons before confirming.` })
 }
 
 // ─── main entry point ───────────────────────────────────────────────────────────
@@ -399,7 +550,7 @@ export async function runScoring(season: string): Promise<PackageResult[]> {
     const scoredPlayers: ScoredPlayer[] = players
       .map(player => {
         const suggestions = getSuggestions(player, teams, players, prevTeams)
-        const recommendation = recommend(player, suggestions)
+        const recommendation = recommend(player, suggestions, players)
         return { player, suggestions, recommendation }
       })
       .sort((a, b) => (b.suggestions[0]?.score ?? -1) - (a.suggestions[0]?.score ?? -1))
