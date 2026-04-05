@@ -250,6 +250,20 @@ export interface CapacityRecord {
   lastModifiedAt: string
 }
 
+/** egs-coaches — PlayMetrics coach data for season, composite key userId#season */
+export interface CoachRecord {
+  id: string              // PK — userId#season
+  user_id: string         // coach's user ID from PlayMetrics
+  season: string          // SK — season year
+  first_name: string
+  last_name: string
+  email: string
+  mobile_number: string
+  team_id: string
+  team_name: string
+  role: string            // "Head Coach", "Assistant Coach", etc.
+}
+
 // ─── Table creation ────────────────────────────────────────────────────────────
 
 const tableDefinitions = [
@@ -402,6 +416,26 @@ const tableDefinitions = [
     AttributeDefinitions: [
       { AttributeName: 'teamId', AttributeType: ScalarAttributeType.S },
       { AttributeName: 'seasonId', AttributeType: ScalarAttributeType.S },
+    ],
+    BillingMode: BillingMode.PAY_PER_REQUEST,
+  },
+  {
+    TableName: 'egs-coaches',
+    KeySchema: [
+      { AttributeName: 'id', KeyType: KeyType.HASH },
+    ],
+    AttributeDefinitions: [
+      { AttributeName: 'id', AttributeType: ScalarAttributeType.S },
+      { AttributeName: 'season', AttributeType: ScalarAttributeType.S },
+    ],
+    GlobalSecondaryIndexes: [
+      {
+        IndexName: 'season-index',
+        KeySchema: [
+          { AttributeName: 'season', KeyType: KeyType.HASH },
+        ],
+        Projection: { ProjectionType: ProjectionType.ALL },
+      },
     ],
     BillingMode: BillingMode.PAY_PER_REQUEST,
   },
