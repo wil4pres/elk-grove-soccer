@@ -697,6 +697,21 @@ State is polled by the UI every 5 seconds via `GET /api/admin/trigger-matching`.
 4. **Load previous season (2025) players** — builds lookup by `account_email|birth_date` → previous `special_request` for history context
 5. **AI extraction** (Claude Haiku) — runs on every player without `extraction_coaches`. Sends: player name, current special_request, previous season request (if found), school_and_grade field, new_or_returning. Returns structured `coaches[]`, `friends[]`, `siblings[]`, `teams[]`, `school_name`, `notes`. Stored back to DynamoDB.
 
+### External Web Services
+
+All third-party APIs and external data sources used by the app and matching pipeline.
+
+| Service | URL | Auth | Used for |
+| --- | --- | --- | --- |
+| **Anthropic Claude API** | `https://api.anthropic.com` | `ANTHROPIC_API_KEY` env var | AI extraction of special requests (model: claude-haiku-4-5-20251001) |
+| **US Census Geocoder** | `https://geocoding.geo.census.gov/geocoder/locations/addressbatch` | None (free, no key) | Batch geocoding player addresses → lat/lng, 1000 addresses per request |
+| **Open-Meteo Weather API** | `https://api.open-meteo.com/v1/forecast` | None (free, no key) | Current weather conditions for Elk Grove and surrounding cities, 15-min revalidation |
+| **EGUSD ArcGIS — Schools** | `https://webmaps.elkgrove.gov/arcgis/rest/services/OPEN_DATA_PORTAL/EGUSD_Schools/MapServer/0/query` | None (public) | School name and location lookup for Jarvis school distance guessing |
+| **Resend Email API** | `https://api.resend.com` | `RESEND_API_KEY` env var | Contact form email forwarding; future parent assignment confirmation emails |
+| **Cloudflare Turnstile** | `https://challenges.cloudflare.com/turnstile/v0/siteverify` | `TURNSTILE_SECRET_KEY` env var | Bot/spam protection on the public contact form |
+| **Google Maps Embed** | `https://www.google.com/maps?q=ADDRESS&output=embed` | None (embed, no key) | Field location maps on the Maps page |
+| **Google Sheets CSV** | `https://docs.google.com/spreadsheets/d/16bRzFp0IghrxTgSmLwrPymM9goh8fx5kXadiRTlXhaI/export?format=csv&gid=1891176485` | None (public sheet) | Live game schedule — fetched every 60 seconds |
+
 ### AI Data Sources — What Jarvis Receives and From Where
 
 Every source of information fed into AI extraction and scoring, listed with where it comes from and what it produces.
@@ -713,7 +728,7 @@ Every source of information fed into AI extraction and scoring, listed with wher
 | `account_email` | Registration form | `egs-players.account_email` | Automatic sibling detection (same email = same family); prev season request lookup |
 | Previous assignments | Historical coordinator decisions | `egs-assignments` (all seasons) | `prev_team` signal — returning player bonus (+3), friend match anchor, multi-year history |
 | Team coach names | Coach spreadsheet (imported manually) | `egs-teams.coach_last_name` | Matched against `extraction_coaches[]` to score coach requests |
-| EGUSD school locations | Public ArcGIS layer (88 schools, WGS84 polygons) | `https://webmaps.elkgrove.gov/arcgis/rest/services/OPEN_DATA_PORTAL/EGUSD_Schools/MapServer/0/query` | Jarvis school guess when parent input is nonsense — nearest school of right type by distance |
+| EGUSD school locations | Public ArcGIS layer (88 schools, WGS84 polygons) | https://webmaps.elkgrove.gov/arcgis/rest/services/OPEN_DATA_PORTAL/EGUSD_Schools/MapServer/0/query | Jarvis school guess when parent input is nonsense — nearest school of right type by distance |
 | Roster counts | `egs-assignments` current season, `assignment_status = 'rostered'` | `egs-assignments` | Capacity warnings — preferred max and hard max per EGS Playing Rules |
 | EGS Playing Rules | Official league rules PDF | Hardcoded in `teamCapacity()` in `matching-engine.ts` | Capacity limits by age group (U8: 10/12, U9-10: 12/14, U11-12: 16/18, U13-19: 18/22) |
 
