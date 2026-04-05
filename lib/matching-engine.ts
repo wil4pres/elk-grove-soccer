@@ -177,12 +177,23 @@ function norm(s: string): string {
 }
 
 function getTeamsForPackage(pkg: string, teams: MatchTeam[], seasonYear: number): MatchTeam[] {
+  let year: string
+  let uAge: number
+
   const yearMatch = pkg.match(/(\d{4})/)
-  if (!yearMatch) return []
-  const year = yearMatch[1]
+  if (yearMatch) {
+    year = yearMatch[1]
+    uAge = (seasonYear + 1) - parseInt(year)
+  } else {
+    // "U10 Boys" / "U12 Girls" format — convert age to birth year
+    const ageMatch = pkg.match(/[Uu](\d{1,2})/)
+    if (!ageMatch) return []
+    uAge = parseInt(ageMatch[1])
+    year = String(seasonYear - uAge)
+  }
+
   const gCode = pkg.toLowerCase().includes('girl') ? 'G' : 'B'
   const gFull = gCode === 'G' ? 'Female' : 'Male'
-  const uAge = (seasonYear + 1) - parseInt(year)
 
   return teams.filter(t => {
     if (t.birth_year === year && (t.gender === gFull || t.gender === gCode)) return true
