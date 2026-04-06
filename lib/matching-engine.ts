@@ -33,6 +33,8 @@ export interface MatchPlayer {
   extraction_teams?: string[]
   extraction_school?: string
   extraction_school_guessed?: boolean
+  extraction_school_lat?: number
+  extraction_school_lng?: number
   extraction_notes?: string
   prev_team: string
   prev_season: string
@@ -163,6 +165,8 @@ export async function loadMatchingData(season: string) {
       extraction_teams: p.extraction_teams,
       extraction_school: p.extraction_school,
       extraction_school_guessed: p.extraction_school_guessed,
+      extraction_school_lat: p.extraction_school_lat,
+      extraction_school_lng: p.extraction_school_lng,
       extraction_notes: p.extraction_notes,
       prev_team: prev?.team ?? '',
       prev_season: prev?.season ?? '',
@@ -187,6 +191,19 @@ export async function loadMatchingData(season: string) {
 }
 
 // ─── scoring ────────────────────────────────────────────────────────────────────
+
+// Geocoded coordinates for EGS practice fields (sourced from Nominatim/OpenStreetMap)
+const FIELD_COORDS: Record<string, { lat: number; lng: number }> = {
+  'Carlisle Woods Park':  { lat: 38.469771, lng: -121.364675 },
+  'Elk Grove Park':       { lat: 38.396225, lng: -121.371393 },
+  'Gates Park':           { lat: 38.402149, lng: -121.349690 },
+  'Hawkins Park':         { lat: 38.419878, lng: -121.482012 },
+  'Jan Rau Park':         { lat: 38.387070, lng: -121.371459 },
+  'Kunsting Park':        { lat: 38.393000, lng: -121.441692 },
+  'Lichtenberger North':  { lat: 38.412310, lng: -121.424259 },
+  'Miwok Park':           { lat: 38.415230, lng: -121.404072 },
+  'Zehnder Park':         { lat: 38.421921, lng: -121.453847 },
+}
 
 function norm(s: string): string {
   return s.toLowerCase().replace(/['\u2019\-.]/g, '')
@@ -434,6 +451,43 @@ function score(
     }
   }
 
+  // ── +1/+2 home proximity to practice field ────────────────────────────────────
+  // Primary location signal for new players with no team/coach history.
+  // Compares player home lat/lng to the team's practice field coordinates.
+  if (team.practice_field && player.lat != null && player.lng != null) {
+    const fieldCoords = FIELD_COORDS[team.practice_field]
+    if (fieldCoords) {
+      const distKm = haversineKm(player.lat, player.lng, fieldCoords.lat, fieldCoords.lng)
+      if (distKm <= 3) {
+        total += 2
+        reasons.push(`Lives close to ${team.practice_field} (${distKm.toFixed(1)} km)`)
+      } else if (distKm <= 8) {
+        total += 1
+        reasons.push(`Lives near ${team.practice_field} (${distKm.toFixed(1)} km)`)
+      }
+    }
+  }
+
+  // ── +1/+2 school proximity to practice field ───────────────────────────────────
+  // If the AI stored school coordinates, check how close the school is to the practice field.
+  // Encourages placing players near schoolmates on local teams.
+  if (team.practice_field && player.extraction_school_lat != null && player.extraction_school_lng != null) {
+    const fieldCoords = FIELD_COORDS[team.practice_field]
+    if (fieldCoords) {
+      const distKm = haversineKm(player.extraction_school_lat, player.extraction_school_lng, fieldCoords.lat, fieldCoords.lng)
+      const schoolLabel = player.extraction_school_guessed
+        ? `(Augur) ${player.extraction_school ?? 'guessed school'}`
+        : (player.extraction_school ?? 'school')
+      if (distKm <= 3) {
+        total += 2
+        reasons.push(`School near ${team.practice_field} (${distKm.toFixed(1)} km) — ${schoolLabel}`)
+      } else if (distKm <= 6) {
+        total += 1
+        reasons.push(`School within range of ${team.practice_field} (${distKm.toFixed(1)} km) — ${schoolLabel}`)
+      }
+    }
+  }
+
   // ── Roster capacity check (does NOT affect score, only adds a reason label) ──
   const currentCount = teamRosterCount.get(team.team_name) ?? 0
   const { preferred, max } = teamCapacity(team.birth_year, seasonYear)
@@ -456,11 +510,20 @@ function getSuggestions(
 ): Suggestion[] {
   // ONLY score against current season teams — never previous year teams.
   // Previous team history is used as a scoring SIGNAL, not a candidate.
-  return teams
+  const scored = teams
     .map(t => score(player, t, allPlayers, prevTeams, teamRosterCount, seasonYear))
-    .filter(s => s.score > 0)
     .sort((a, b) => b.score - a.score)
-    .slice(0, 3)
+
+  const withSignals = scored.filter(s => s.score > 0)
+  if (withSignals.length > 0) return withSignals.slice(0, 3)
+
+  // No signals — new player with no history, no request, no location data.
+  // Return first 3 teams alphabetically so the coordinator has something to work with.
+  const alphabetical = [...scored].sort((a, b) => a.team.localeCompare(b.team)).slice(0, 3)
+  return alphabetical.map(s => ({
+    ...s,
+    reasons: ['No prior data — assign based on availability'],
+  }))
 }
 
 // ─── AI recommendation ─────────────────────────────────────────────────────────

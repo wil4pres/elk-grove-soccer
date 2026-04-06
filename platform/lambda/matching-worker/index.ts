@@ -126,7 +126,7 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
-async function guessSchool(lat: number, lng: number, grade: number): Promise<string | null> {
+async function guessSchool(lat: number, lng: number, grade: number): Promise<SchoolRecord | null> {
   const schools = await loadSchools()
   const validTypes = new Set(schoolTypeFromGrade(grade))
   const candidates = schools.filter(s => validTypes.has(s.type))
@@ -137,7 +137,21 @@ async function guessSchool(lat: number, lng: number, grade: number): Promise<str
     const d = haversineKm(lat, lng, s.lat, s.lng)
     if (d < minDist) { minDist = d; nearest = s }
   }
-  return nearest.name
+  return nearest
+}
+
+function findSchoolCoords(name: string, schools: SchoolRecord[]): SchoolRecord | null {
+  if (!name?.trim()) return null
+  const nameLower = name.toLowerCase()
+  // Exact match first
+  const exact = schools.find(s => s.name.toLowerCase() === nameLower)
+  if (exact) return exact
+  // Partial match (e.g. "Valley Oak" matches "Valley Oak Elementary")
+  const partial = schools.find(s => {
+    const sn = s.name.toLowerCase()
+    return sn.includes(nameLower) || nameLower.includes(sn)
+  })
+  return partial ?? null
 }
 
 // ─── Geocoding helper ─────────────────────────────────────────────────────────
@@ -311,19 +325,21 @@ async function runPipeline(season: string, messageId: string, startedAt: string)
         }
         const grade = gradeFromBirthDate(p.birth_date ?? '', parseInt(season))
         if (grade < 0 || grade > 13) continue
-        const schoolName = await guessSchool(p.lat, p.lng, grade)
-        if (!schoolName) continue
+        const school = await guessSchool(p.lat, p.lng, grade)
+        if (!school) continue
 
         await db.send(new UpdateCommand({
           TableName: PLAYERS_TABLE,
           Key: { player_id: p.player_id, season },
-          UpdateExpression: 'SET extraction_school = :s, extraction_school_guessed = :g',
-          ExpressionAttributeValues: { ':s': schoolName, ':g': true },
+          UpdateExpression: 'SET extraction_school = :s, extraction_school_guessed = :g, extraction_school_lat = :slat, extraction_school_lng = :slng',
+          ExpressionAttributeValues: { ':s': school.name, ':g': true, ':slat': school.lat, ':slng': school.lng },
         }))
-        p.extraction_school = schoolName
+        p.extraction_school = school.name
         p.extraction_school_guessed = true
+        p.extraction_school_lat = school.lat
+        p.extraction_school_lng = school.lng
         guessed++
-        console.log(`[augur] ${p.player_first_name} ${p.player_last_name}: Augur guessed school → ${schoolName} (grade ${grade}, "${p.school_and_grade}")`)
+        console.log(`[augur] ${p.player_first_name} ${p.player_last_name}: Augur guessed school → ${school.name} (grade ${grade}, "${p.school_and_grade}")`)
       } catch (e) {
         console.error(`[augur] School guess failed for ${p.player_first_name} ${p.player_last_name}:`, e instanceof Error ? e.message : e)
       }
@@ -437,6 +453,49 @@ async function runPipeline(season: string, messageId: string, startedAt: string)
     }
   } else {
     console.log(`[augur] All players already extracted`)
+  }
+
+  // ── 6. School coordinates lookup ─────────────────────────────────────────────
+  // For any player with extraction_school but no extraction_school_lat, look up
+  // the school's lat/lng from the EGUSD ArcGIS data so proximity scoring works.
+  const needSchoolCoords = players.filter(p =>
+    p.extraction_school?.trim() &&
+    (p.extraction_school_lat == null || p.extraction_school_lng == null)
+  )
+  console.log(`[augur] School coords lookup: ${needSchoolCoords.length} players need school lat/lng`)
+
+  if (needSchoolCoords.length > 0) {
+    await setStep('school_coords', `School location lookup 0/${needSchoolCoords.length}…`, 0, needSchoolCoords.length)
+    let coordsSet = 0
+    const schools = await loadSchools()
+
+    for (let i = 0; i < needSchoolCoords.length; i++) {
+      const p = needSchoolCoords[i]
+      try {
+        const school = findSchoolCoords(p.extraction_school, schools)
+        if (school) {
+          await db.send(new UpdateCommand({
+            TableName: PLAYERS_TABLE,
+            Key: { player_id: p.player_id, season },
+            UpdateExpression: 'SET extraction_school_lat = :slat, extraction_school_lng = :slng',
+            ExpressionAttributeValues: { ':slat': school.lat, ':slng': school.lng },
+          }))
+          p.extraction_school_lat = school.lat
+          p.extraction_school_lng = school.lng
+          coordsSet++
+          console.log(`[augur] ${p.player_first_name} ${p.player_last_name}: school coords → ${school.name} (${school.lat.toFixed(4)}, ${school.lng.toFixed(4)})`)
+        }
+      } catch (e) {
+        console.error(`[augur] School coords failed for ${p.player_first_name} ${p.player_last_name}:`, e instanceof Error ? e.message : e)
+      }
+
+      if (i % 20 === 0 || i === needSchoolCoords.length - 1) {
+        await setStep('school_coords', `School location lookup ${i + 1}/${needSchoolCoords.length}…`, i + 1, needSchoolCoords.length)
+      }
+    }
+    console.log(`[augur] School coords complete: ${coordsSet}/${needSchoolCoords.length} resolved`)
+  } else {
+    console.log(`[augur] All players already have school coords`)
   }
 
   await setState({
