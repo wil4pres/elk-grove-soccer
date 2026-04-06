@@ -123,7 +123,10 @@ function buildPlayerContext(player: MatchPlayer): string[] {
 
   // What we know
   if (player.extraction_school) {
-    context.push(`School: ${player.extraction_school}`)
+    const label = player.extraction_school_guessed
+      ? `School: ${player.extraction_school} — Augur🤖 Best Guess`
+      : `School: ${player.extraction_school}`
+    context.push(label)
   } else if (player.school_and_grade && !['n/a', 'na', 'none', '-', ''].includes(player.school_and_grade.toLowerCase().trim())) {
     context.push(`School/grade: ${player.school_and_grade}`)
   } else {
