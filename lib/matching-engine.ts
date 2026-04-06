@@ -703,9 +703,16 @@ function getCrossAgeSuggestions(
   // that maps to an actual 2026 current-season team
   const currentTeamNames = new Set(currentTeams.map(t => t.team_name))
 
+  // Fuzzy school match: either name contains the other (handles "Albiani" vs "Albiani Middle School")
+  function schoolMatches(a: string, b: string): boolean {
+    const al = a.toLowerCase(), bl = b.toLowerCase()
+    return al === bl || al.includes(bl) || bl.includes(al)
+  }
+
   const schoolMates = allPlayersAllPkgs.filter(p => {
     if (p.player_id === player.player_id) return false
-    if (p.extraction_school?.trim().toLowerCase() !== schoolLower) return false
+    if (!p.extraction_school?.trim()) return false
+    if (!schoolMatches(p.extraction_school.trim(), school)) return false
     if (!p.prev_team) return false
     // Same gender
     if (p.gender?.toLowerCase() !== playerGender) return false
@@ -716,17 +723,18 @@ function getCrossAgeSuggestions(
     return true
   })
 
-  // Count how many schoolmates are on each team that exists in 2026
+  // Count schoolmates per prev_team — prefer teams that exist in 2026 but include all
   const teamCounts = new Map<string, number>()
   for (const sm of schoolMates) {
-    if (sm.prev_team && currentTeamNames.has(sm.prev_team)) {
+    if (sm.prev_team) {
       teamCounts.set(sm.prev_team, (teamCounts.get(sm.prev_team) ?? 0) + 1)
     }
   }
 
-  const ranked = [...teamCounts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
+  // Sort: 2026 teams first, then others, within each group by count descending
+  const ranked2026 = [...teamCounts.entries()].filter(([t]) => currentTeamNames.has(t)).sort((a, b) => b[1] - a[1])
+  const rankedOther = [...teamCounts.entries()].filter(([t]) => !currentTeamNames.has(t)).sort((a, b) => b[1] - a[1])
+  const ranked = [...ranked2026, ...rankedOther].slice(0, 3)
 
   const genderLabel = playerGender === 'f' ? 'girls' : 'boys'
   const suggestions: Suggestion[] = ranked.map(([team, count]) => ({
