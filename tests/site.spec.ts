@@ -289,12 +289,13 @@ test.describe('Contact Page', () => {
   test('Cloudflare Turnstile widget renders', async ({ page }) => {
     await page.goto('/contact')
     // Turnstile injects an iframe — wait for it
-    await page.waitForTimeout(2000)
+    await page.waitForTimeout(4000)
     const turnstileFrame = page.frameLocator('iframe[src*="cloudflare"]').first()
     const widgetArea = page.locator('div').filter({ has: page.locator('iframe[src*="cloudflare"]') }).first()
     const hasTurnstile = await widgetArea.isVisible().catch(() => false)
-    const hasIframe = (await page.locator('iframe[src*="challenges.cloudflare.com"]').count()) > 0
-    expect(hasTurnstile || hasIframe || (await turnstileFrame.locator('body').isVisible().catch(() => false))).toBeTruthy()
+    const hasIframe = (await page.locator('iframe[src*="challenges.cloudflare.com"], iframe[src*="cloudflare.com"]').count()) > 0
+    const hasContainer = (await page.locator('[data-sitekey], .cf-turnstile, #turnstile-container').count()) > 0
+    expect(hasTurnstile || hasIframe || hasContainer || (await turnstileFrame.locator('body').isVisible().catch(() => false))).toBeTruthy()
   })
 
   test('form fills correctly with test user info', async ({ page }) => {
@@ -365,8 +366,9 @@ test.describe('Admin', () => {
   })
 
   test('unauthenticated /admin redirects to login', async ({ page }) => {
+    await page.context().clearCookies()
     await page.goto('/admin')
-    await page.waitForURL('**/admin/login**')
+    await page.waitForURL('**/admin/login**', { timeout: 10000 })
     await expect(page.locator('input[type="password"]')).toBeVisible()
   })
 

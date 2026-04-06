@@ -26,7 +26,7 @@ const statusBadge: Record<string, string> = {
 export default async function FieldsPage({ searchParams }: Props) {
   const { edit, add } = await searchParams
   const res = await db.send(new ScanCommand({ TableName: 'egs-fields' }))
-  const fields = (res.Items ?? []) as Field[]
+  const fields = (res.Items ?? []).filter(item => item.complex && item.status) as Field[]
   fields.sort((a, b) => a.complex.localeCompare(b.complex) || a.name.localeCompare(b.name))
 
   const editingField = edit ? fields.find(f => f.id === edit) : null

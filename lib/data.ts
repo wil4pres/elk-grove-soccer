@@ -7,7 +7,10 @@ import type { AlumniStory } from './alumni'
 
 export async function getFields(): Promise<Field[]> {
   const res = await db.send(new ScanCommand({ TableName: 'egs-fields' }))
-  return (res.Items ?? []) as Field[]
+  // Filter to admin-managed field status records only (have 'complex' + 'status').
+  // The same table also holds raw SportsEngine location imports (have 'facility'
+  // instead) which lack the required fields and would crash the field-status page.
+  return (res.Items ?? []).filter(item => item.complex && item.status) as Field[]
 }
 
 export async function getPrograms(): Promise<Program[]> {
