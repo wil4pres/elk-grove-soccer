@@ -683,37 +683,56 @@ function recommend(player: MatchPlayer, suggestions: Suggestion[], allPlayers: M
 }
 
 // ─── Cross-age school fallback ─────────────────────────────────────────────────
-// When no eligible teams exist for a player's birth year/gender, look at ALL
-// registered players with the same school and find which current-season teams
-// they are on (via prev_team). Returns suggestions ranked by schoolmate count.
+// When no eligible teams exist for a player's birth year/gender, look at same-
+// gender players from the same school (within ±2 birth years) and find which
+// current-season teams their schoolmates are on. Ranked by schoolmate count.
 
 function getCrossAgeSuggestions(
   player: MatchPlayer,
   allPlayersAllPkgs: MatchPlayer[],
+  currentTeams: MatchTeam[],
 ): { suggestions: Suggestion[]; schoolName: string } {
   const school = player.extraction_school?.trim()
   if (!school) return { suggestions: [], schoolName: '' }
 
   const schoolLower = school.toLowerCase()
-  const schoolMates = allPlayersAllPkgs.filter(p =>
-    p.player_id !== player.player_id &&
-    p.extraction_school?.trim().toLowerCase() === schoolLower &&
-    p.prev_team
-  )
+  const playerBirthYear = parseInt(player.birth_date?.slice(0, 4) ?? '0')
+  const playerGender = player.gender?.toLowerCase() // 'M' or 'F'
 
+  // Find same-gender schoolmates within ±2 birth years who have a prev_team
+  // that maps to an actual 2026 current-season team
+  const currentTeamNames = new Set(currentTeams.map(t => t.team_name))
+
+  const schoolMates = allPlayersAllPkgs.filter(p => {
+    if (p.player_id === player.player_id) return false
+    if (p.extraction_school?.trim().toLowerCase() !== schoolLower) return false
+    if (!p.prev_team) return false
+    // Same gender
+    if (p.gender?.toLowerCase() !== playerGender) return false
+    // Within ±2 birth years
+    const by = parseInt(p.birth_date?.slice(0, 4) ?? '0')
+    if (!by || !playerBirthYear) return false
+    if (Math.abs(by - playerBirthYear) > 2) return false
+    return true
+  })
+
+  // Count how many schoolmates are on each team that exists in 2026
   const teamCounts = new Map<string, number>()
   for (const sm of schoolMates) {
-    if (sm.prev_team) teamCounts.set(sm.prev_team, (teamCounts.get(sm.prev_team) ?? 0) + 1)
+    if (sm.prev_team && currentTeamNames.has(sm.prev_team)) {
+      teamCounts.set(sm.prev_team, (teamCounts.get(sm.prev_team) ?? 0) + 1)
+    }
   }
 
   const ranked = [...teamCounts.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
 
+  const genderLabel = playerGender === 'f' ? 'girls' : 'boys'
   const suggestions: Suggestion[] = ranked.map(([team, count]) => ({
     team,
     score: count,
-    reasons: [`${count} ${school} student${count > 1 ? 's' : ''} on this team`],
+    reasons: [`${count} ${school} ${genderLabel} (similar age) on this team`],
   }))
 
   return { suggestions, schoolName: school }
@@ -767,7 +786,7 @@ export async function runScoring(season: string): Promise<PackageResult[]> {
       .map(player => {
         // No eligible teams for this birth year/gender — use cross-age school fallback
         if (teams.length === 0) {
-          const { suggestions: crossSugg, schoolName } = getCrossAgeSuggestions(player, allPlayersAllPkgs)
+          const { suggestions: crossSugg, schoolName } = getCrossAgeSuggestions(player, allPlayersAllPkgs, currentTeams)
           return { player, suggestions: crossSugg, recommendation: recommendNoTeams(player, crossSugg, schoolName, pkg) }
         }
         const suggestions = getSuggestions(player, teams, players, prevTeams, teamRosterCount, seasonYear)
