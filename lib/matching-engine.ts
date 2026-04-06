@@ -682,11 +682,80 @@ function recommend(player: MatchPlayer, suggestions: Suggestion[], allPlayers: M
   return w({ level: 'yellow', text: `Suggest ${top.team} (score ${top.score}/10). Review reasons before confirming.` })
 }
 
+// ─── Cross-age school fallback ─────────────────────────────────────────────────
+// When no eligible teams exist for a player's birth year/gender, look at ALL
+// registered players with the same school and find which current-season teams
+// they are on (via prev_team). Returns suggestions ranked by schoolmate count.
+
+function getCrossAgeSuggestions(
+  player: MatchPlayer,
+  allPlayersAllPkgs: MatchPlayer[],
+): { suggestions: Suggestion[]; schoolName: string } {
+  const school = player.extraction_school?.trim()
+  if (!school) return { suggestions: [], schoolName: '' }
+
+  const schoolLower = school.toLowerCase()
+  const schoolMates = allPlayersAllPkgs.filter(p =>
+    p.player_id !== player.player_id &&
+    p.extraction_school?.trim().toLowerCase() === schoolLower &&
+    p.prev_team
+  )
+
+  const teamCounts = new Map<string, number>()
+  for (const sm of schoolMates) {
+    if (sm.prev_team) teamCounts.set(sm.prev_team, (teamCounts.get(sm.prev_team) ?? 0) + 1)
+  }
+
+  const ranked = [...teamCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+
+  const suggestions: Suggestion[] = ranked.map(([team, count]) => ({
+    team,
+    score: count,
+    reasons: [`${count} ${school} student${count > 1 ? 's' : ''} on this team`],
+  }))
+
+  return { suggestions, schoolName: school }
+}
+
+function recommendNoTeams(
+  player: MatchPlayer,
+  crossSugg: Suggestion[],
+  schoolName: string,
+  pkg: string,
+): Recommendation {
+  const req = (player.special_request || '').trim()
+  const hasReq = req && !['n/a', 'na', 'none', '-'].includes(req.toLowerCase())
+  const reqNote = hasReq ? ` Player requested "${req}".` : ''
+
+  if (crossSugg.length > 0) {
+    const teamList = crossSugg
+      .map(s => `${s.team} (${s.score} ${schoolName} student${s.score > 1 ? 's' : ''})`)
+      .join(', ')
+    return {
+      level: 'orange',
+      text: `No ${pkg} teams found for 2026.${reqNote} Other ${schoolName} students are on: ${teamList} — coordinate placement with those coaches or add a ${pkg} team.`,
+    }
+  }
+
+  return {
+    level: 'red',
+    text: `No ${pkg} teams found for 2026.${reqNote} Coordinator must manually place or add a team for this age group.`,
+  }
+}
+
 // ─── main entry point ───────────────────────────────────────────────────────────
 
 export async function runScoring(season: string): Promise<PackageResult[]> {
   const { packages, playersByPackage, currentTeams, prevTeams, seasonYear, teamRosterCount } =
     await loadMatchingData(season)
+
+  // Build a flat list of all players across all packages for cross-age school lookups
+  const allPlayersAllPkgs: MatchPlayer[] = []
+  for (const pkgPlayers of playersByPackage.values()) {
+    allPlayersAllPkgs.push(...pkgPlayers)
+  }
 
   const results: PackageResult[] = []
 
@@ -696,6 +765,11 @@ export async function runScoring(season: string): Promise<PackageResult[]> {
 
     const scoredPlayers: ScoredPlayer[] = players
       .map(player => {
+        // No eligible teams for this birth year/gender — use cross-age school fallback
+        if (teams.length === 0) {
+          const { suggestions: crossSugg, schoolName } = getCrossAgeSuggestions(player, allPlayersAllPkgs)
+          return { player, suggestions: crossSugg, recommendation: recommendNoTeams(player, crossSugg, schoolName, pkg) }
+        }
         const suggestions = getSuggestions(player, teams, players, prevTeams, teamRosterCount, seasonYear)
         const recommendation = recommend(player, suggestions, players)
         return { player, suggestions, recommendation }
