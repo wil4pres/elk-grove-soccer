@@ -788,8 +788,32 @@ export async function runScoring(season: string): Promise<PackageResult[]> {
 
     const scoredPlayers: ScoredPlayer[] = players
       .map(player => {
-        // No eligible teams for this birth year/gender — use cross-age school fallback
+        // No eligible teams for this registered package — check if player's actual
+        // birth year maps to a different age group that does have teams.
         if (teams.length === 0) {
+          const playerBirthYear = player.birth_date?.slice(0, 4)
+          const genderFull = player.gender === 'F' ? 'Female' : 'Male'
+          const actualTeams = playerBirthYear
+            ? currentTeams.filter(t => t.birth_year === playerBirthYear && (t.gender === genderFull || t.gender === player.gender))
+            : []
+
+          if (actualTeams.length > 0) {
+            // Player is registered in wrong age group — score against their actual birth year teams
+            const actualUAge = (seasonYear + 1) - parseInt(playerBirthYear!)
+            const actualPkg = `U${actualUAge} ${player.gender === 'F' ? 'Girls' : 'Boys'}`
+            const suggestions = getSuggestions(player, actualTeams, players, prevTeams, teamRosterCount, seasonYear)
+            const req = (player.special_request || '').trim()
+            const hasReq = req && !['n/a', 'na', 'none', '-'].includes(req.toLowerCase())
+            const reqNote = hasReq ? ` Player requested "${req}".` : ''
+            const top = suggestions[0]
+            const rec: Recommendation = {
+              level: 'yellow',
+              text: `No ${pkg} teams in 2026 — player (born ${playerBirthYear}) belongs in ${actualPkg}.${reqNote} ${top ? `Best match: ${top.team} (score ${top.score}).` : ''} Coordinator should confirm age group before placing.`,
+            }
+            return { player, suggestions, recommendation: rec }
+          }
+
+          // No teams for registered package OR actual birth year — try school-based cross-age fallback
           const { suggestions: crossSugg, schoolName } = getCrossAgeSuggestions(player, allPlayersAllPkgs, currentTeams)
           return { player, suggestions: crossSugg, recommendation: recommendNoTeams(player, crossSugg, schoolName, pkg) }
         }
