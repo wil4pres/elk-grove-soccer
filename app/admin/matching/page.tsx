@@ -88,12 +88,13 @@ export default function MatchingPage() {
             : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
           setCompletedTime(completedAt)
           setTimeout(() => { setMatchingStatus('idle'); setCompletedTime('') }, 8000)
+          loadData()
         }
       }
     } catch (e) {
       console.error('Error checking matching status:', e)
     }
-  }, [])
+  }, [loadData])
 
   // Elapsed timer while running
   useEffect(() => {
@@ -146,6 +147,9 @@ export default function MatchingPage() {
       setStartedAt(new Date())
       setElapsedSeconds(0)
       setStepLabel('Starting…')
+      // Kick off a data refresh after a brief delay so the table updates
+      // even if matching completes before the first 2s poll fires
+      setTimeout(() => loadData(), 1500)
     } catch (e) {
       setMatchingError(e instanceof Error ? e.message : 'Failed to start matching')
     }
