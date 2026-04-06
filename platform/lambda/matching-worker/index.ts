@@ -194,13 +194,19 @@ Return ONLY valid JSON with these keys:
   friends:     string[]  — player/child names requested as friend or teammate (NOT family/siblings)
   siblings:    string[]  — names mentioned as brother, sister, or sibling (family placement)
   teams:       string[]  — team nicknames mentioned
-  school_name: string    — clean school name parsed from the school field, or "" if not present
+  school_name: string    — full official school name, or "" if not determinable
   notes:       string    — one short sentence capturing important context not covered above (scheduling constraints, play-up requests, strong preferences), else ""
 
 Rules:
 - Do NOT include the registering player's own name in any list
 - If a request says "brother", "sister", or "sibling", put that name in siblings NOT friends
-- For school_name: extract just the school name, drop grade/year info. E.g. "Kerr Middle school - 8th grade" → "Kerr Middle School"
+- For school_name: always return the FULL official school name with proper capitalization. Drop grade/year info.
+  Examples: "Kerr Middle school - 8th grade" → "Kerr Middle School"
+            "albiani 8th" → "Albiani Middle School"
+            "Franklin HS Senior" → "Franklin High School"
+            "St Peters Lutheran" → "St. Peter's Lutheran School"
+            "10" or "4th" or "grade 7" or a bare number → "" (not a school name, return empty)
+  If you are not confident in the full official name, return what you can — do not abbreviate.
 - If prev_special_request is provided and this season's request is empty or vague, use the previous request to infer coaches/friends/teams the family has historically wanted — add a note if you're drawing from history
 - If nothing fits a category, return [] or ""
 - Return raw JSON only, no markdown fences`
@@ -304,8 +310,12 @@ async function runPipeline(season: string, messageId: string, startedAt: string)
   }
 
   // ── 3. School guess (Augur) ──────────────────────────────────────────────────
+  // Runs AFTER AI extraction (step 5 will overwrite extraction_school if AI finds one).
+  // Here we pre-populate for players where school_and_grade is clearly not a school name
+  // (bare number, grade-only) so Augur has something to work with before AI runs.
+  // AI extraction in step 5 will preserve the Augur guess if it can't do better.
   const needSchoolGuess = players.filter(p =>
-    isNonsenseSchool(p.school_and_grade) &&
+    !p.extraction_school?.trim() &&
     p.lat != null && p.lng != null &&
     !p.extraction_school_guessed
   )

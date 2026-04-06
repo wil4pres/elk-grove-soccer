@@ -429,20 +429,16 @@ function score(
   }
 
   // ── +1 same school ───────────────────────────────────────────────────────────
+  // Only use AI-extracted school names — no regex fallbacks on raw school_and_grade
   const teamPlayers = allPlayers.filter(p => p.player_id !== player.player_id && p.prev_team === team.team_name)
 
-  const playerSchool = player.extraction_school?.trim()
-    ? norm(player.extraction_school)
-    : player.school_and_grade?.length > 4
-      ? norm(player.school_and_grade).split(/\s+/).filter(w => w.length > 4).join(' ')
-      : null
+  const playerSchool = player.extraction_school?.trim() ? norm(player.extraction_school) : null
 
   if (playerSchool) {
     const sameSchool = teamPlayers.filter(tp => {
-      const tpSchool = tp.extraction_school?.trim()
-        ? norm(tp.extraction_school)
-        : norm(tp.school_and_grade || '')
-      return tpSchool.length > 4 && (tpSchool.includes(playerSchool) || playerSchool.includes(tpSchool))
+      const tpSchool = tp.extraction_school?.trim() ? norm(tp.extraction_school) : null
+      if (!tpSchool) return false
+      return tpSchool.includes(playerSchool) || playerSchool.includes(tpSchool)
     })
     if (sameSchool.length > 0) {
       total += 1
