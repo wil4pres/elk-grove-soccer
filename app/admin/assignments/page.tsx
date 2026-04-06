@@ -511,18 +511,29 @@ function AssignmentTableRow({ row }: { row: AssignmentRow }) {
 
       {/* Signals */}
       <td className="px-4 py-3">
-        <div className="flex flex-wrap gap-1">
-          {visibleSignals.map((s, i) => (
-            <span key={i} className="bg-sky-100 text-sky-800 text-[10px] px-1.5 py-0.5 rounded">
-              {expanded ? s : s.length > 50 ? s.slice(0, 47) + '...' : s}
-            </span>
-          ))}
-          {hasMore && !expanded && (
-            <span className="text-[10px] text-blue-500 font-medium cursor-pointer hover:underline">
-              +{row.signals.length - 3} more
-            </span>
-          )}
-        </div>
+        {expanded ? (
+          <div className="flex flex-col gap-1">
+            {row.signals.map((s, i) => (
+              <span key={i} className="bg-sky-100 text-sky-800 text-[10px] px-1.5 py-0.5 rounded inline-block">
+                {s}
+              </span>
+            ))}
+            <span className="text-[10px] text-gray-400 italic">click to collapse</span>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-1">
+            {row.signals.slice(0, 3).map((s, i) => (
+              <span key={i} className="bg-sky-100 text-sky-800 text-[10px] px-1.5 py-0.5 rounded">
+                {s.length > 50 ? s.slice(0, 47) + '...' : s}
+              </span>
+            ))}
+            {row.signals.length > 3 && (
+              <span className="text-[10px] text-blue-500 font-medium">
+                +{row.signals.length - 3} more
+              </span>
+            )}
+          </div>
+        )}
       </td>
 
       {/* Assigned by */}
