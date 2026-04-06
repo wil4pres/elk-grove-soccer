@@ -21,12 +21,6 @@ import {
 
 const client = new DynamoDBClient({
   region: process.env.DYNAMO_REGION ?? 'us-east-1',
-  ...(process.env.DYNAMO_ACCESS_KEY_ID && {
-    credentials: {
-      accessKeyId: process.env.DYNAMO_ACCESS_KEY_ID,
-      secretAccessKey: process.env.DYNAMO_SECRET_ACCESS_KEY!,
-    },
-  }),
 })
 
 // ─── Table type definitions ────────────────────────────────────────────────────
@@ -445,6 +439,18 @@ const tableDefinitions = [
     ],
     AttributeDefinitions: [
       { AttributeName: 'id', AttributeType: ScalarAttributeType.S },
+    ],
+    BillingMode: BillingMode.PAY_PER_REQUEST,
+  },
+  {
+    TableName: 'egs-grand-assignments',
+    KeySchema: [
+      { AttributeName: 'player_id', KeyType: KeyType.HASH },
+      { AttributeName: 'season', KeyType: KeyType.RANGE },
+    ],
+    AttributeDefinitions: [
+      { AttributeName: 'player_id', AttributeType: ScalarAttributeType.S },
+      { AttributeName: 'season', AttributeType: ScalarAttributeType.S },
     ],
     BillingMode: BillingMode.PAY_PER_REQUEST,
   },

@@ -223,7 +223,7 @@ function norm(s: string): string {
 
 // ─── Roster capacity (from official EGS Playing Rules) ──────────────────────────
 // Returns { preferred, max } for a given birth year in the current season
-function teamCapacity(birthYear: string, seasonYear: number): { preferred: number; max: number } {
+export function teamCapacity(birthYear: string, seasonYear: number): { preferred: number; max: number } {
   const by = parseInt(birthYear || '0')
   if (!by) return { preferred: 18, max: 22 }
   const uAge = (seasonYear + 1) - by   // U-age = next calendar year minus birth year
@@ -233,7 +233,7 @@ function teamCapacity(birthYear: string, seasonYear: number): { preferred: numbe
   return { preferred: 18, max: 22 }                    // U13-U19
 }
 
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371
   const dLat = (lat2 - lat1) * Math.PI / 180
   const dLng = (lng2 - lng1) * Math.PI / 180
@@ -260,7 +260,7 @@ function findSibling(name: string, excludeId: string, allPlayers: MatchPlayer[])
   }) ?? null
 }
 
-function getTeamsForPackage(pkg: string, teams: MatchTeam[], seasonYear: number): MatchTeam[] {
+export function getTeamsForPackage(pkg: string, teams: MatchTeam[], seasonYear: number): MatchTeam[] {
   let year: string
   let uAge: number
 
@@ -288,7 +288,7 @@ function getTeamsForPackage(pkg: string, teams: MatchTeam[], seasonYear: number)
   })
 }
 
-function score(
+export function score(
   player: MatchPlayer,
   team: MatchTeam,
   allPlayers: MatchPlayer[],

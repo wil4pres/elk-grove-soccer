@@ -9,10 +9,6 @@ import { DynamoDBDocumentClient, ScanCommand, BatchWriteCommand } from '@aws-sdk
 
 const client = new DynamoDBClient({
   region: process.env.DYNAMO_REGION ?? 'us-east-1',
-  credentials: {
-    accessKeyId: process.env.DYNAMO_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.DYNAMO_SECRET_ACCESS_KEY!,
-  },
 })
 const db = DynamoDBDocumentClient.from(client)
 

@@ -6,11 +6,9 @@
  * can update them manually via the admin UI).
  *
  * Run:
- *   DYNAMO_ACCESS_KEY_ID=... DYNAMO_SECRET_ACCESS_KEY=... \
  *   npx tsx platform/dynamo/update-practice-fields-2026.ts
  *
- * Or from the project root (picks up .env.local):
- *   source .env.local && npx tsx platform/dynamo/update-practice-fields-2026.ts
+ * Uses AWS CLI credentials (configured via `aws configure --profile elkgrovesoccer`).
  */
 
 import Database from 'better-sqlite3'
@@ -24,10 +22,6 @@ const SQLITE_PATH = path.join(__dirname, '../../matching/matching.db')
 
 const client = new DynamoDBClient({
   region: process.env.DYNAMO_REGION ?? 'us-east-1',
-  credentials: {
-    accessKeyId: process.env.DYNAMO_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.DYNAMO_SECRET_ACCESS_KEY!,
-  },
 })
 const db = DynamoDBDocumentClient.from(client)
 const TABLE = 'egs-teams'

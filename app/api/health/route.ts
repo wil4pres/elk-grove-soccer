@@ -4,8 +4,6 @@ import { NextResponse } from 'next/server'
 
 export async function GET() {
   const env = {
-    hasAccessKey: !!process.env.DYNAMO_ACCESS_KEY_ID,
-    hasSecretKey: !!process.env.DYNAMO_SECRET_ACCESS_KEY,
     region: process.env.DYNAMO_REGION ?? 'not set',
     nodeEnv: process.env.NODE_ENV,
   }

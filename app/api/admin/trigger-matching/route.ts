@@ -66,10 +66,6 @@ async function setState(item: Record<string, unknown>): Promise<void> {
 function getSQS(): SQSClient {
   return new SQSClient({
     region: process.env.DYNAMO_REGION ?? 'us-east-1',
-    credentials: {
-      accessKeyId: process.env.DYNAMO_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.DYNAMO_SECRET_ACCESS_KEY!,
-    },
   })
 }
 

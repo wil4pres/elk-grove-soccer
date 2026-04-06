@@ -1,284 +1,530 @@
 'use client'
 
-import { useState } from 'react'
-import Link from 'next/link'
-import {
-  getAssignments,
-  getAssignmentStats,
-  type Assignment,
-  type AssignmentStatus,
-  type ScoreBreakdown,
-} from '@/lib/assignments'
+import { useCallback, useEffect, useState } from 'react'
 
-// ─── Birth year groups (sidebar filter like the report) ───────────────────────
+// ─── Types ──────────────────────────────────────────────────────────────────────
 
-function getBirthYearGroups(assignments: Assignment[]) {
-  const groups = new Map<string, Assignment[]>()
-  for (const a of assignments) {
-    const key = `${a.playerBirthYear} ${a.playerGender === 'male' ? 'Boys' : 'Girls'}`
-    if (!groups.has(key)) groups.set(key, [])
-    groups.get(key)!.push(a)
-  }
-  return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b))
+type Confidence = 'green' | 'yellow' | 'red'
+type ViewTab = 'assignments' | 'unassigned' | 'teams'
+
+interface AssignmentRow {
+  player_id: string
+  player_name: string
+  package_name: string
+  assigned_team_id: string
+  assigned_team_name: string
+  score: number
+  signals: string[]
+  confidence: Confidence
+  assigned_by: 'grand_assignment' | 'coordinator_override'
+  override_approved?: boolean
+  timestamp: string
 }
 
-// ─── Score reason tags ────────────────────────────────────────────────────────
-
-function reasonTags(b: ScoreBreakdown) {
-  const tags: { label: string; color: string }[] = []
-  if (b.coachMatchScore > 0)       tags.push({ label: `Requested coach`, color: 'bg-blue-100 text-blue-700' })
-  if (b.friendMatchScore > 0)      tags.push({ label: `Friend match`, color: 'bg-green-100 text-green-700' })
-  if (b.siblingScheduleScore > 0)  tags.push({ label: `Sibling schedule`, color: 'bg-orange-100 text-orange-700' })
-  if (b.returningPlayerScore > 0)  tags.push({ label: `Returning player`, color: 'bg-gray-100 text-gray-600' })
-  if (b.proximityScore >= 25)      tags.push({ label: `Close (${b.distanceMiles?.toFixed(1) ?? '?'} mi)`, color: 'bg-teal-100 text-teal-700' })
-  if (!b.hasCapacity)              tags.push({ label: `FULL`, color: 'bg-red-100 text-red-700' })
-  return tags
+interface UnassignedRow {
+  player_id: string
+  player_name: string
+  package_name: string
+  reason: string
+  best_team?: string
+  best_score?: number
 }
 
-function scoreColor(score: number) {
-  if (score >= 70) return 'text-green-600'
-  if (score >= 40) return 'text-yellow-600'
-  return 'text-red-500'
+interface TeamSummary {
+  team_id: string
+  team_name: string
+  birth_year: string
+  gender: string
+  assigned_count: number
+  preferred: number
+  max: number
+  overflow_approved: number
 }
 
-function scoreBarInline(score: number) {
-  const pct = Math.min(score, 100)
-  const color = pct >= 70 ? 'bg-green-500' : pct >= 40 ? 'bg-yellow-500' : 'bg-red-500'
-  return (
-    <div className="flex items-center gap-1.5">
-      <span className={`text-sm font-bold ${scoreColor(score)} w-8`}>{score}</span>
-      <span className="text-xs text-gray-400">pts</span>
-      <div className="w-14 h-1.5 bg-gray-200 rounded-full overflow-hidden ml-1">
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  )
+interface ReportStats {
+  total_players: number
+  assigned: number
+  unassigned: number
+  green: number
+  yellow: number
+  red: number
 }
 
-function statusBadge(status: AssignmentStatus) {
-  const map: Record<AssignmentStatus, { bg: string; label: string }> = {
-    pending:    { bg: 'bg-yellow-100 text-yellow-800', label: 'Pending' },
-    scored:     { bg: 'bg-blue-100 text-blue-800',     label: 'Needs Review' },
-    assigned:   { bg: 'bg-green-100 text-green-800',   label: 'Assigned' },
-    exception:  { bg: 'bg-red-100 text-red-800',       label: 'Exception' },
-    overridden: { bg: 'bg-purple-100 text-purple-800', label: 'Overridden' },
-  }
-  const s = map[status]
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${s.bg}`}>
-      {s.label}
-    </span>
-  )
+interface GrandAssignmentReport {
+  season: string
+  assignments: AssignmentRow[]
+  unassigned: UnassignedRow[]
+  teamSummary: TeamSummary[]
+  stats: ReportStats
+  generatedAt: string
 }
 
-// ─── Single player row — report-style dense view ──────────────────────────────
-
-function PlayerRow({ a }: { a: Assignment }) {
-  return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 hover:border-gray-300 transition-colors">
-      <div className="flex items-start gap-4">
-        {/* Left: player info */}
-        <div className="min-w-0 w-48 shrink-0">
-          <div className="flex items-center gap-2 mb-1">
-            <Link href={`/admin/assignments/${a.profileId}`} className="font-semibold text-gray-900 hover:text-blue-600 transition-colors">
-              {a.playerName}
-            </Link>
-            {statusBadge(a.status)}
-          </div>
-          <p className="text-xs text-gray-400">{a.playerBirthYear} &middot; {a.guardianName}</p>
-          {a.specialRequest && (
-            <p className="text-xs text-blue-600 mt-1.5 font-medium">{a.specialRequest}</p>
-          )}
-        </div>
-
-        {/* Middle: suggestions with score tags (report-style) */}
-        <div className="flex-1 min-w-0">
-          {a.scoreBreakdown.length > 0 ? (
-            <div className="flex flex-col gap-2">
-              {a.scoreBreakdown.map((b, i) => (
-                <div
-                  key={b.teamId}
-                  className={`flex items-start gap-3 rounded-lg px-3 py-2 ${
-                    i === 0 ? 'border-l-[3px] border-green-500 bg-green-50/50' :
-                    i === 1 ? 'border-l-[3px] border-yellow-400 bg-yellow-50/30' :
-                    'border-l-[3px] border-gray-300 bg-gray-50/50'
-                  }`}
-                >
-                  <span className="text-xs text-gray-400 font-bold mt-0.5">#{i + 1}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900">{b.teamName}</p>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {reasonTags(b).map(tag => (
-                        <span key={tag.label} className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${tag.color}`}>
-                          {tag.label}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="shrink-0">{scoreBarInline(b.totalScore)}</div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-400 italic">Not yet scored</p>
-          )}
-
-          {/* Exception reason inline */}
-          {a.exceptionReason && (
-            <div className="mt-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-xs text-red-700">{a.exceptionReason}</p>
-            </div>
-          )}
-        </div>
-
-        {/* Right: AI recommendation + actions */}
-        <div className="w-56 shrink-0 flex flex-col gap-2">
-          {a.aiExplanation && (
-            <div className="border-l-[3px] border-indigo-400 bg-indigo-50/50 rounded-r-lg px-3 py-2">
-              <p className="text-[11px] text-indigo-700 leading-snug">{a.aiExplanation}</p>
-            </div>
-          )}
-
-          {/* Inline action buttons */}
-          <div className="flex items-center gap-2 mt-auto">
-            {(a.status === 'scored' || a.status === 'exception') && a.topTeamName && (
-              <button
-                onClick={() => alert(`[Mock] Approved: ${a.playerName} → ${a.topTeamName}`)}
-                className="px-2.5 py-1 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition-colors"
-              >
-                Approve
-              </button>
-            )}
-            <Link
-              href={`/admin/assignments/${a.profileId}`}
-              className="px-2.5 py-1 bg-white border border-gray-300 text-gray-600 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors"
-            >
-              {a.status === 'scored' || a.status === 'exception' ? 'Override' : 'Details'}
-            </Link>
-            {a.parentEmailSent && (
-              <span className="text-[10px] text-green-600 font-medium">&#10003; Email sent</span>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
-const STATUS_TABS: { key: AssignmentStatus | 'all'; label: string }[] = [
-  { key: 'all',        label: 'All' },
-  { key: 'pending',    label: 'Pending' },
-  { key: 'scored',     label: 'Review' },
-  { key: 'exception',  label: 'Exceptions' },
-  { key: 'assigned',   label: 'Assigned' },
-  { key: 'overridden', label: 'Overridden' },
-]
+// ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AssignmentsPage() {
-  const [activeTab, setActiveTab] = useState<AssignmentStatus | 'all'>('all')
-  const [activeGroup, setActiveGroup] = useState<string | null>(null)
-  const stats = getAssignmentStats()
-  const allAssignments = getAssignments()
-  const birthYearGroups = getBirthYearGroups(allAssignments)
+  const [report, setReport] = useState<GrandAssignmentReport | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [running, setRunning] = useState(false)
+  const [error, setError] = useState('')
+  const [viewTab, setViewTab] = useState<ViewTab>('assignments')
+  const [filterPkg, setFilterPkg] = useState<string | null>(null)
+  const [filterConfidence, setFilterConfidence] = useState<Confidence | null>(null)
 
-  let filtered = activeTab === 'all'
-    ? allAssignments
-    : allAssignments.filter(a => a.status === activeTab)
+  const loadReport = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/grand-assignment')
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      setReport(data.report)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-  if (activeGroup) {
-    filtered = filtered.filter(a => {
-      const key = `${a.playerBirthYear} ${a.playerGender === 'male' ? 'Boys' : 'Girls'}`
-      return key === activeGroup
-    })
+  useEffect(() => { loadReport() }, [loadReport])
+
+  async function runAssignment() {
+    setRunning(true)
+    setError('')
+    try {
+      const res = await fetch('/api/admin/grand-assignment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'run' }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || `HTTP ${res.status}`)
+      }
+      const data = await res.json()
+      setReport(data.report)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  async function rerunAssignment() {
+    setRunning(true)
+    setError('')
+    try {
+      const res = await fetch('/api/admin/grand-assignment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'rerun' }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      setReport(data.report)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  async function approveOverflow(playerId: string) {
+    try {
+      const res = await fetch('/api/admin/grand-assignment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'approve_overflow', playerId }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      // Re-run to reassign displaced players with new capacity
+      await rerunAssignment()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  // ── Derived data ─────────────────────────────────────────────────────────────
+  const packages = report
+    ? [...new Set(report.assignments.map(a => a.package_name))].sort()
+    : []
+
+  let filteredAssignments = report?.assignments ?? []
+  if (filterPkg) filteredAssignments = filteredAssignments.filter(a => a.package_name === filterPkg)
+  if (filterConfidence) filteredAssignments = filteredAssignments.filter(a => a.confidence === filterConfidence)
+
+  let filteredUnassigned = report?.unassigned ?? []
+  if (filterPkg) filteredUnassigned = filteredUnassigned.filter(u => u.package_name === filterPkg)
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm text-gray-500">Loading assignment report...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Assignments</h1>
-        <p className="text-gray-500 mt-1">Spring 2026 — Player-to-team assignment queue</p>
-      </div>
-
-      {/* Stats strip */}
-      <div className="flex flex-wrap gap-3 mb-4 text-sm">
-        <span className="font-medium text-gray-700">{stats.total} players</span>
-        <span className="text-gray-300">|</span>
-        <span className="text-green-700 font-medium">{stats.assigned} assigned</span>
-        <span className="text-gray-300">|</span>
-        <span className="text-blue-700 font-medium">{stats.scored} need review</span>
-        <span className="text-gray-300">|</span>
-        <span className="text-red-700 font-medium">{stats.exception} exceptions</span>
-        <span className="text-gray-300">|</span>
-        <span className="text-yellow-700 font-medium">{stats.pending} pending</span>
-        <span className="text-gray-300">|</span>
-        <span className="text-purple-700 font-medium">{stats.overridden} overridden</span>
-      </div>
-
-      <div className="flex gap-6">
-        {/* Left sidebar: birth year filter */}
-        <div className="w-28 shrink-0 hidden lg:block">
-          <div className="sticky top-20">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Grand Assignment Report</h1>
+          <p className="text-gray-500 mt-1">
+            Spring 2026 — One-click full-season team assignment
+            {report?.generatedAt && (
+              <span className="ml-2 text-xs text-gray-400">
+                Last run: {new Date(report.generatedAt).toLocaleString()}
+              </span>
+            )}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {report && (
             <button
-              onClick={() => setActiveGroup(null)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors mb-1 ${
-                !activeGroup ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              onClick={rerunAssignment}
+              disabled={running}
+              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
             >
-              All
+              {running ? 'Re-running...' : 'Re-run (keep overrides)'}
             </button>
-            {birthYearGroups.map(([group]) => (
-              <button
-                key={group}
-                onClick={() => setActiveGroup(activeGroup === group ? null : group)}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors mb-0.5 ${
-                  activeGroup === group
-                    ? 'bg-blue-600 text-white font-medium'
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                {group}
-              </button>
-            ))}
+          )}
+          <button
+            onClick={runAssignment}
+            disabled={running}
+            className="px-5 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors"
+          >
+            {running ? (
+              <span className="flex items-center gap-2">
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Running...
+              </span>
+            ) : report ? 'Run Fresh Assignment' : 'Run Grand Assignment'}
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+          <p className="text-red-700 text-sm">{error}</p>
+        </div>
+      )}
+
+      {/* No report yet */}
+      {!report && !error && (
+        <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
+          <h2 className="text-lg font-bold text-gray-800 mb-2">No Assignment Report Yet</h2>
+          <p className="text-gray-500 text-sm mb-6">
+            Click "Run Grand Assignment" to score every player against every eligible team
+            and produce a global, constraint-aware assignment in one pass.
+          </p>
+          <div className="text-left max-w-md mx-auto text-sm text-gray-500 space-y-1.5">
+            <p>The algorithm will:</p>
+            <ol className="list-decimal pl-5 space-y-1">
+              <li>Score every player against every eligible team</li>
+              <li>Sort all player-team pairs by score (strongest first)</li>
+              <li>Greedily assign — skip full teams</li>
+              <li>Classify confidence: green / yellow / red</li>
+            </ol>
           </div>
         </div>
+      )}
 
-        {/* Main content */}
-        <div className="flex-1 min-w-0">
-          {/* Status tabs */}
-          <div className="flex gap-1.5 mb-4 overflow-x-auto">
-            {STATUS_TABS.map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                  activeTab === tab.key
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {tab.label}
-                <span className="ml-1.5 text-xs opacity-60">
-                  {tab.key === 'all' ? stats.total : stats[tab.key as keyof typeof stats]}
-                </span>
-              </button>
-            ))}
+      {/* Report content */}
+      {report && (
+        <>
+          {/* Stats strip */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            <StatBadge label={`${report.stats.total_players} total`} />
+            <StatBadge label={`${report.stats.assigned} assigned`} variant="green" />
+            <StatBadge label={`${report.stats.unassigned} unassigned`} variant={report.stats.unassigned > 0 ? 'red' : undefined} />
+            <span className="border-l border-gray-300 mx-1" />
+            <ConfBadge confidence="green" count={report.stats.green} onClick={() => setFilterConfidence(filterConfidence === 'green' ? null : 'green')} active={filterConfidence === 'green'} />
+            <ConfBadge confidence="yellow" count={report.stats.yellow} onClick={() => setFilterConfidence(filterConfidence === 'yellow' ? null : 'yellow')} active={filterConfidence === 'yellow'} />
+            <ConfBadge confidence="red" count={report.stats.red} onClick={() => setFilterConfidence(filterConfidence === 'red' ? null : 'red')} active={filterConfidence === 'red'} />
           </div>
 
-          {/* Player list — report-style cards */}
-          <div className="flex flex-col gap-3">
-            {filtered.map(a => (
-              <PlayerRow key={a.profileId} a={a} />
-            ))}
-            {filtered.length === 0 && (
-              <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-gray-400">
-                No assignments in this category.
-              </div>
+          {/* View tabs + package filter */}
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex gap-1">
+              {(['assignments', 'unassigned', 'teams'] as ViewTab[]).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setViewTab(tab)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors capitalize ${
+                    viewTab === tab ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {tab}
+                  {tab === 'unassigned' && report.stats.unassigned > 0 && (
+                    <span className="ml-1 text-xs bg-red-500 text-white px-1.5 py-0.5 rounded-full">{report.stats.unassigned}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {viewTab !== 'teams' && (
+              <select
+                value={filterPkg ?? ''}
+                onChange={e => setFilterPkg(e.target.value || null)}
+                className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 text-gray-700"
+              >
+                <option value="">All packages</option>
+                {packages.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            )}
+
+            {(filterPkg || filterConfidence) && (
+              <button
+                onClick={() => { setFilterPkg(null); setFilterConfidence(null) }}
+                className="text-xs text-gray-400 hover:text-gray-600 underline"
+              >
+                Clear filters
+              </button>
             )}
           </div>
-        </div>
-      </div>
+
+          {/* Assignments table */}
+          {viewTab === 'assignments' && (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left font-semibold w-8"></th>
+                    <th className="px-4 py-3 text-left font-semibold">Player</th>
+                    <th className="px-4 py-3 text-left font-semibold">Package</th>
+                    <th className="px-4 py-3 text-left font-semibold">Assigned Team</th>
+                    <th className="px-4 py-3 text-left font-semibold">Score</th>
+                    <th className="px-4 py-3 text-left font-semibold">Signals</th>
+                    <th className="px-4 py-3 text-left font-semibold w-20">By</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAssignments.map(a => (
+                    <AssignmentTableRow key={a.player_id} row={a} />
+                  ))}
+                  {filteredAssignments.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-8 text-center text-gray-400 italic">
+                        No assignments match current filters
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Unassigned table */}
+          {viewTab === 'unassigned' && (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
+              {filteredUnassigned.length === 0 ? (
+                <div className="px-4 py-8 text-center text-gray-400">
+                  All players have been assigned!
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                      <th className="px-4 py-3 text-left font-semibold">Player</th>
+                      <th className="px-4 py-3 text-left font-semibold">Package</th>
+                      <th className="px-4 py-3 text-left font-semibold">Reason</th>
+                      <th className="px-4 py-3 text-left font-semibold">Best Match</th>
+                      <th className="px-4 py-3 text-left font-semibold w-32">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredUnassigned.map(u => (
+                      <tr key={u.player_id} className="border-t border-gray-100 hover:bg-red-50/30">
+                        <td className="px-4 py-3 font-medium text-gray-900">{u.player_name}</td>
+                        <td className="px-4 py-3 text-gray-600 text-xs">{u.package_name}</td>
+                        <td className="px-4 py-3 text-red-600 text-xs">{u.reason}</td>
+                        <td className="px-4 py-3">
+                          {u.best_team ? (
+                            <span className="text-xs text-gray-700">
+                              {u.best_team} <span className="text-gray-400">(score {u.best_score})</span>
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-300 italic">None</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          {u.best_team && (
+                            <button
+                              onClick={() => approveOverflow(u.player_id)}
+                              className="px-2.5 py-1 bg-amber-500 text-white rounded-lg text-xs font-medium hover:bg-amber-600 transition-colors"
+                            >
+                              Approve +1
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+
+          {/* Teams summary */}
+          {viewTab === 'teams' && (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left font-semibold">Team</th>
+                    <th className="px-4 py-3 text-left font-semibold">Age / Gender</th>
+                    <th className="px-4 py-3 text-center font-semibold">Assigned</th>
+                    <th className="px-4 py-3 text-center font-semibold">Preferred</th>
+                    <th className="px-4 py-3 text-center font-semibold">Max</th>
+                    <th className="px-4 py-3 text-center font-semibold">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.teamSummary.map(t => {
+                    const pct = t.preferred > 0 ? (t.assigned_count / t.preferred) * 100 : 0
+                    const isFull = t.assigned_count >= t.max
+                    const isNearLimit = !isFull && t.assigned_count >= t.preferred
+                    return (
+                      <tr key={t.team_id} className={`border-t border-gray-100 ${isFull ? 'bg-red-50/30' : isNearLimit ? 'bg-amber-50/30' : ''}`}>
+                        <td className="px-4 py-3 font-medium text-gray-900">{t.team_name}</td>
+                        <td className="px-4 py-3 text-gray-600 text-xs">
+                          {t.birth_year} {t.gender === 'Male' || t.gender === 'B' ? 'Boys' : 'Girls'}
+                        </td>
+                        <td className="px-4 py-3 text-center font-bold text-gray-900">{t.assigned_count}</td>
+                        <td className="px-4 py-3 text-center text-gray-500">{t.preferred}</td>
+                        <td className="px-4 py-3 text-center text-gray-500">
+                          {t.max}
+                          {t.overflow_approved > 0 && (
+                            <span className="text-amber-600 font-medium"> +{t.overflow_approved}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${isFull ? 'bg-red-500' : isNearLimit ? 'bg-amber-500' : 'bg-green-500'}`}
+                                style={{ width: `${Math.min(pct, 100)}%` }}
+                              />
+                            </div>
+                            {isFull && <span className="text-[10px] font-bold text-red-600 uppercase">Full</span>}
+                            {isNearLimit && !isFull && <span className="text-[10px] font-medium text-amber-600">Near limit</span>}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
     </div>
+  )
+}
+
+// ─── Sub-components ─────────────────────────────────────────────────────────────
+
+function StatBadge({ label, variant }: { label: string; variant?: 'green' | 'red' }) {
+  const cls =
+    variant === 'green' ? 'bg-green-50 border-green-300 text-green-800 font-semibold' :
+    variant === 'red' ? 'bg-red-50 border-red-300 text-red-800 font-semibold' :
+    'bg-white border-gray-200 text-gray-500'
+  return <span className={`border rounded-md px-3 py-1.5 text-xs ${cls}`}>{label}</span>
+}
+
+function ConfBadge({
+  confidence, count, onClick, active,
+}: {
+  confidence: Confidence; count: number; onClick: () => void; active: boolean
+}) {
+  const emoji = confidence === 'green' ? '🟢' : confidence === 'yellow' ? '🟡' : '🔴'
+  const label = confidence === 'green' ? 'Strong' : confidence === 'yellow' ? 'Moderate' : 'Weak'
+  return (
+    <button
+      onClick={onClick}
+      className={`border rounded-md px-3 py-1.5 text-xs transition-colors ${
+        active
+          ? 'bg-gray-900 text-white border-gray-900'
+          : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+      }`}
+    >
+      {emoji} {count} {label}
+    </button>
+  )
+}
+
+function AssignmentTableRow({ row }: { row: AssignmentRow }) {
+  const confColor = {
+    green: 'bg-green-500',
+    yellow: 'bg-amber-400',
+    red: 'bg-red-500',
+  }[row.confidence]
+
+  const confLabel = {
+    green: 'Strong',
+    yellow: 'Moderate',
+    red: 'AI guess — verify',
+  }[row.confidence]
+
+  const scorePct = Math.min(100, (row.score / 10) * 100)
+  const scoreBarColor = row.score >= 5 ? 'bg-green-500' : row.score >= 3 ? 'bg-amber-500' : 'bg-gray-400'
+
+  return (
+    <tr className={`border-t border-gray-100 hover:bg-gray-50 ${row.confidence === 'red' ? 'bg-red-50/30' : ''}`}>
+      {/* Confidence dot */}
+      <td className="px-4 py-3">
+        <div className={`w-3 h-3 rounded-full ${confColor}`} title={confLabel} />
+      </td>
+
+      {/* Player */}
+      <td className="px-4 py-3">
+        <span className="font-medium text-gray-900">{row.player_name}</span>
+      </td>
+
+      {/* Package */}
+      <td className="px-4 py-3 text-xs text-gray-500">{row.package_name}</td>
+
+      {/* Team */}
+      <td className="px-4 py-3">
+        <span className="text-sm font-semibold text-blue-700">{row.assigned_team_name}</span>
+      </td>
+
+      {/* Score */}
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-1.5">
+          <span className="text-sm font-bold text-gray-700 w-6 text-right">{row.score}</span>
+          <div className="w-12 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+            <div className={`h-full rounded-full ${scoreBarColor}`} style={{ width: `${scorePct}%` }} />
+          </div>
+        </div>
+      </td>
+
+      {/* Signals */}
+      <td className="px-4 py-3">
+        <div className="flex flex-wrap gap-1 max-w-xs">
+          {row.signals.slice(0, 4).map((s, i) => (
+            <span key={i} className="bg-sky-100 text-sky-800 text-[10px] px-1.5 py-0.5 rounded">
+              {s.length > 40 ? s.slice(0, 37) + '...' : s}
+            </span>
+          ))}
+          {row.signals.length > 4 && (
+            <span className="text-[10px] text-gray-400">+{row.signals.length - 4} more</span>
+          )}
+        </div>
+      </td>
+
+      {/* Assigned by */}
+      <td className="px-4 py-3">
+        {row.assigned_by === 'coordinator_override' ? (
+          <span className="text-[10px] font-medium text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded">Override</span>
+        ) : (
+          <span className="text-[10px] text-gray-400">Auto</span>
+        )}
+      </td>
+    </tr>
   )
 }
