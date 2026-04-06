@@ -5,7 +5,7 @@
  * Reads from egs-players, egs-teams, egs-assignments.
  */
 
-import { ScanCommand } from '@aws-sdk/lib-dynamodb'
+import { ScanCommand, QueryCommand } from '@aws-sdk/lib-dynamodb'
 import { db } from './dynamo'
 
 // ─── types ──────────────────────────────────────────────────────────────────────
@@ -81,25 +81,37 @@ export interface PackageResult {
 
 // ─── DynamoDB helpers ───────────────────────────────────────────────────────────
 
+// Query via season-index GSI when a season filter is provided (egs-players, egs-teams).
+// Falls back to Scan for tables without the GSI (egs-assignments uses a full scan
+// because the matching engine needs ALL seasons for historical context).
 async function scanTable<T>(tableName: string, filterSeason?: string): Promise<T[]> {
   const items: T[] = []
   let lastKey: Record<string, unknown> | undefined
 
-  do {
-    const params: Record<string, unknown> = {
-      TableName: tableName,
-      ExclusiveStartKey: lastKey,
-    }
-    if (filterSeason) {
-      Object.assign(params, {
-        FilterExpression: 'season = :s',
+  if (filterSeason) {
+    // Use Query on the season-index GSI — O(season size) instead of O(table size)
+    do {
+      const res = await db.send(new QueryCommand({
+        TableName: tableName,
+        IndexName: 'season-index',
+        KeyConditionExpression: 'season = :s',
         ExpressionAttributeValues: { ':s': filterSeason },
-      })
-    }
-    const res = await db.send(new ScanCommand(params as any))
-    for (const item of res.Items ?? []) items.push(item as T)
-    lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined
-  } while (lastKey)
+        ExclusiveStartKey: lastKey,
+      }))
+      for (const item of res.Items ?? []) items.push(item as T)
+      lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined
+    } while (lastKey)
+  } else {
+    // Full scan — used for egs-assignments (needs all seasons for history)
+    do {
+      const res = await db.send(new ScanCommand({
+        TableName: tableName,
+        ExclusiveStartKey: lastKey,
+      }))
+      for (const item of res.Items ?? []) items.push(item as T)
+      lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined
+    } while (lastKey)
+  }
 
   return items
 }

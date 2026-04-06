@@ -15,7 +15,7 @@
 
 import type { SQSHandler, SQSEvent } from 'aws-lambda'
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
-import { DynamoDBDocumentClient, PutCommand, ScanCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb'
+import { DynamoDBDocumentClient, PutCommand, QueryCommand, ScanCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb'
 import Anthropic from '@anthropic-ai/sdk'
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
@@ -243,9 +243,10 @@ async function runPipeline(season: string, messageId: string, startedAt: string)
   const players: Record<string, any>[] = []
   let lastKey: Record<string, unknown> | undefined
   do {
-    const res = await db.send(new ScanCommand({
+    const res = await db.send(new QueryCommand({
       TableName: PLAYERS_TABLE,
-      FilterExpression: 'season = :s',
+      IndexName: 'season-index',
+      KeyConditionExpression: 'season = :s',
       ExpressionAttributeValues: { ':s': season },
       ExclusiveStartKey: lastKey,
     }))
@@ -360,9 +361,10 @@ async function runPipeline(season: string, messageId: string, startedAt: string)
   const prevPlayers: Record<string, any>[] = []
   let prevKey: Record<string, unknown> | undefined
   do {
-    const res = await db.send(new ScanCommand({
+    const res = await db.send(new QueryCommand({
       TableName: PLAYERS_TABLE,
-      FilterExpression: 'season = :s',
+      IndexName: 'season-index',
+      KeyConditionExpression: 'season = :s',
       ExpressionAttributeValues: { ':s': prevSeason },
       ExclusiveStartKey: prevKey,
     }))
