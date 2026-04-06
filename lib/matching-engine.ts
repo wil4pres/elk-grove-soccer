@@ -788,32 +788,39 @@ export async function runScoring(season: string): Promise<PackageResult[]> {
 
     const scoredPlayers: ScoredPlayer[] = players
       .map(player => {
-        // No eligible teams for this registered package — check if player's actual
-        // birth year maps to a different age group that does have teams.
+        // No eligible teams for this registered package.
+        // Strategy:
+        //   1. Score against ALL same-gender 2026 teams — coach/friend/team name requests
+        //      may match a team in a different age group (e.g. coach moved age groups)
+        //   2. If strong signals found (score > 0), surface them with a play-up/down warning
+        //   3. Otherwise fall back to school-based cross-age lookup
         if (teams.length === 0) {
-          const playerBirthYear = player.birth_date?.slice(0, 4)
           const genderFull = player.gender === 'F' ? 'Female' : 'Male'
-          const actualTeams = playerBirthYear
-            ? currentTeams.filter(t => t.birth_year === playerBirthYear && (t.gender === genderFull || t.gender === player.gender))
-            : []
+          const sameGenderTeams = currentTeams.filter(t => t.gender === genderFull || t.gender === player.gender)
 
-          if (actualTeams.length > 0) {
-            // Player is registered in wrong age group — score against their actual birth year teams
-            const actualUAge = (seasonYear + 1) - parseInt(playerBirthYear!)
-            const actualPkg = `U${actualUAge} ${player.gender === 'F' ? 'Girls' : 'Boys'}`
-            const suggestions = getSuggestions(player, actualTeams, players, prevTeams, teamRosterCount, seasonYear)
-            const req = (player.special_request || '').trim()
-            const hasReq = req && !['n/a', 'na', 'none', '-'].includes(req.toLowerCase())
-            const reqNote = hasReq ? ` Player requested "${req}".` : ''
-            const top = suggestions[0]
-            const rec: Recommendation = {
-              level: 'yellow',
-              text: `No ${pkg} teams in 2026 — player (born ${playerBirthYear}) belongs in ${actualPkg}.${reqNote} ${top ? `Best match: ${top.team} (score ${top.score}).` : ''} Coordinator should confirm age group before placing.`,
+          if (sameGenderTeams.length > 0) {
+            const allScored = getSuggestions(player, sameGenderTeams, allPlayersAllPkgs, prevTeams, teamRosterCount, seasonYear)
+            const withSignals = allScored.filter(s => s.score > 0)
+
+            if (withSignals.length > 0) {
+              const top = withSignals[0]
+              const topTeam = currentTeams.find(t => t.team_name === top.team)
+              const topBY = topTeam?.birth_year ?? '?'
+              const topUAge = topBY !== '?' ? (seasonYear + 1) - parseInt(topBY) : '?'
+              const playerBY = player.birth_date?.slice(0, 4) ?? '?'
+              const playerUAge = playerBY !== '?' ? (seasonYear + 1) - parseInt(playerBY) : '?'
+              const req = (player.special_request || '').trim()
+              const hasReq = req && !['n/a', 'na', 'none', '-'].includes(req.toLowerCase())
+              const reqNote = hasReq ? ` Requested: "${req}".` : ''
+              const rec: Recommendation = {
+                level: 'yellow',
+                text: `No ${pkg} (U${playerUAge}) teams in 2026.${reqNote} Best cross-age match: ${top.team} (U${topUAge}, score ${top.score}). Coordinator must confirm age group — only play-ups allowed, no play-downs.`,
+              }
+              return { player, suggestions: withSignals.slice(0, 3), recommendation: rec }
             }
-            return { player, suggestions, recommendation: rec }
           }
 
-          // No teams for registered package OR actual birth year — try school-based cross-age fallback
+          // No signals even across all same-gender teams — try school-based cross-age fallback
           const { suggestions: crossSugg, schoolName } = getCrossAgeSuggestions(player, allPlayersAllPkgs, currentTeams)
           return { player, suggestions: crossSugg, recommendation: recommendNoTeams(player, crossSugg, schoolName, pkg) }
         }
