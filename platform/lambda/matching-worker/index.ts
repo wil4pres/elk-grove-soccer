@@ -407,6 +407,11 @@ async function runPipeline(season: string, messageId: string, startedAt: string)
             newOrReturning: p.new_or_returning ?? '',
           })
 
+          // Only overwrite extraction_school if AI returned a real value,
+          // otherwise preserve the Augur school guess from step 3.
+          const keepAugurSchool = p.extraction_school_guessed && !ex.school_name?.trim()
+          const schoolValue = keepAugurSchool ? (p.extraction_school ?? '') : (ex.school_name ?? '')
+
           await db.send(new UpdateCommand({
             TableName: PLAYERS_TABLE,
             Key: { player_id: p.player_id, season },
@@ -416,7 +421,7 @@ async function runPipeline(season: string, messageId: string, startedAt: string)
               ':f': ex.friends ?? [],
               ':sb': ex.siblings ?? [],
               ':t': ex.teams ?? [],
-              ':sc': ex.school_name ?? '',
+              ':sc': schoolValue,
               ':n': ex.notes ?? '',
             },
           }))
@@ -425,7 +430,7 @@ async function runPipeline(season: string, messageId: string, startedAt: string)
           p.extraction_friends = ex.friends ?? []
           p.extraction_siblings = ex.siblings ?? []
           p.extraction_teams = ex.teams ?? []
-          p.extraction_school = ex.school_name ?? ''
+          p.extraction_school = schoolValue
           p.extraction_notes = ex.notes ?? ''
 
           ok++

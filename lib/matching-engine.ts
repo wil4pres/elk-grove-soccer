@@ -273,7 +273,7 @@ function getTeamsForPackage(pkg: string, teams: MatchTeam[], seasonYear: number)
     const ageMatch = pkg.match(/[Uu](\d{1,2})/)
     if (!ageMatch) return []
     uAge = parseInt(ageMatch[1])
-    year = String(seasonYear - uAge)
+    year = String((seasonYear + 1) - uAge)
   }
 
   const gCode = pkg.toLowerCase().includes('girl') ? 'G' : 'B'
