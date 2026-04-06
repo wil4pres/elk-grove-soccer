@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  distDir: ".next",
   env: {
     DYNAMO_ACCESS_KEY_ID: process.env.DYNAMO_ACCESS_KEY_ID ?? '',
     DYNAMO_SECRET_ACCESS_KEY: process.env.DYNAMO_SECRET_ACCESS_KEY ?? '',

@@ -305,11 +305,39 @@ function getSuggestions(player: Player, teams: Team[], allPlayers: Player[]): Su
     if (prevTeam) candidates.push(prevTeam)
   }
 
-  return candidates
+  const scored = candidates
     .map(t => score(player, t, allPlayers))
     .filter(s => s.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 3)
+
+  if (scored.length) return scored
+
+  // ── Schoolmate fallback ──────────────────────────────────────────────────────
+  // When nothing else matches, find same-school same-age players with a prev_team
+  const school = (player.school_and_grade || '').toLowerCase()
+  const schoolWords = school.split(/\s+/).filter(w => w.length > 4)
+  if (!schoolWords.length) return []
+
+  const playerBY = parseInt(player.birth_date?.slice(0, 4) ?? '0')
+  const schoolmateSuggestions: Suggestion[] = []
+
+  for (const sm of allPlayers.filter(p =>
+    p.id !== player.id &&
+    p.prev_team &&
+    Math.abs(parseInt(p.birth_date?.slice(0, 4) ?? '0') - playerBY) <= 1 &&
+    schoolWords.some(w => (p.school_and_grade || '').toLowerCase().includes(w))
+  )) {
+    if (!candidates.some(t => t.name === sm.prev_team)) continue
+    const existing = schoolmateSuggestions.find(s => s.team === sm.prev_team)
+    if (existing) {
+      existing.reasons.push(`${sm.first_name} ${sm.last_name} (same school)`)
+    } else {
+      schoolmateSuggestions.push({ team: sm.prev_team, score: 1, reasons: [`${sm.first_name} ${sm.last_name} attends same school`] })
+    }
+  }
+
+  return schoolmateSuggestions.sort((a, b) => b.reasons.length - a.reasons.length).slice(0, 3)
 }
 
 // ─── AI recommendation ───────────────────────────────────────────────────────
@@ -391,9 +419,10 @@ function recommend(player: Player, suggestions: Suggestion[], allPlayers: Player
     return { level: 'yellow', text: `New player. Best available match is ${top.team} (score ${top.score}/10). Coordinator should confirm.` }
   }
 
-  // Weak match
+  // Weak match — schoolmate fallback or other low signal
   if (top.score <= 2) {
-    return { level: 'orange', text: `Weak signals only (score ${top.score}/10). Best guess: ${top.team}. Recommend coordinator review.` }
+    const reqNote = hasReq ? ` Request "${req}" could not be matched — manual lookup still needed.` : ''
+    return { level: 'orange', text: `Weak signals only (score ${top.score}/10). Best guess: ${top.team}. Recommend coordinator review.${reqNote}` }
   }
 
   return { level: 'yellow', text: `Suggest ${top.team} (score ${top.score}/10). Review reasons before confirming.` }
