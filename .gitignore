@@ -47,3 +47,6 @@ matching/*.html
 !matching/report.html
 platform/node_modules/
 playwright/.auth/
+chk.ts
+matching/matching.db-shm
+matching/matching.db-wal
