@@ -458,6 +458,7 @@ function ConfBadge({
 }
 
 function AssignmentTableRow({ row }: { row: AssignmentRow }) {
+  const [expanded, setExpanded] = useState(false)
   const confColor = {
     green: 'bg-green-500',
     yellow: 'bg-amber-400',
@@ -472,9 +473,14 @@ function AssignmentTableRow({ row }: { row: AssignmentRow }) {
 
   const scorePct = Math.min(100, (row.score / 10) * 100)
   const scoreBarColor = row.score >= 5 ? 'bg-green-500' : row.score >= 3 ? 'bg-amber-500' : 'bg-gray-400'
+  const visibleSignals = expanded ? row.signals : row.signals.slice(0, 3)
+  const hasMore = row.signals.length > 3
 
   return (
-    <tr className={`border-t border-gray-100 hover:bg-gray-50 ${row.confidence === 'red' ? 'bg-red-50/30' : ''}`}>
+    <tr
+      className={`border-t border-gray-100 hover:bg-gray-50 cursor-pointer ${row.confidence === 'red' ? 'bg-red-50/30' : ''}`}
+      onClick={() => setExpanded(!expanded)}
+    >
       {/* Confidence dot */}
       <td className="px-4 py-3">
         <div className={`w-3 h-3 rounded-full ${confColor}`} title={confLabel} />
@@ -505,14 +511,16 @@ function AssignmentTableRow({ row }: { row: AssignmentRow }) {
 
       {/* Signals */}
       <td className="px-4 py-3">
-        <div className="flex flex-wrap gap-1 max-w-xs">
-          {row.signals.slice(0, 4).map((s, i) => (
+        <div className="flex flex-wrap gap-1">
+          {visibleSignals.map((s, i) => (
             <span key={i} className="bg-sky-100 text-sky-800 text-[10px] px-1.5 py-0.5 rounded">
-              {s.length > 40 ? s.slice(0, 37) + '...' : s}
+              {expanded ? s : s.length > 50 ? s.slice(0, 47) + '...' : s}
             </span>
           ))}
-          {row.signals.length > 4 && (
-            <span className="text-[10px] text-gray-400">+{row.signals.length - 4} more</span>
+          {hasMore && !expanded && (
+            <span className="text-[10px] text-blue-500 font-medium cursor-pointer hover:underline">
+              +{row.signals.length - 3} more
+            </span>
           )}
         </div>
       </td>
