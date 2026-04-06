@@ -113,6 +113,57 @@ function classifyConfidence(scoreVal: number, signals: string[]): Confidence {
   return 'red'
 }
 
+// ─── Player context for zero-score assignments ────────────────────────────────
+// When a player has no scoring signals, surface what data we DO have and
+// explain what's missing so the coordinator knows what to do next.
+
+function buildPlayerContext(player: MatchPlayer): string[] {
+  const context: string[] = []
+  const missing: string[] = []
+
+  // What we know
+  if (player.extraction_school) {
+    context.push(`School: ${player.extraction_school}`)
+  } else if (player.school_and_grade && !['n/a', 'na', 'none', '-', ''].includes(player.school_and_grade.toLowerCase().trim())) {
+    context.push(`School/grade: ${player.school_and_grade}`)
+  } else {
+    missing.push('school')
+  }
+
+  if (player.city) {
+    context.push(`City: ${player.city}`)
+  }
+
+  if (player.lat != null && player.lng != null) {
+    context.push('Geocoded (has address)')
+  } else {
+    missing.push('address/geocode')
+  }
+
+  if (player.prev_team) {
+    context.push(`Prev team: ${player.prev_team}`)
+  } else {
+    context.push('New player — no team history')
+  }
+
+  const req = (player.special_request || '').trim()
+  const hasReq = req && !['n/a', 'na', 'none', '-'].includes(req.toLowerCase())
+  if (hasReq) {
+    context.push(`Request: "${req}" (unmatched)`)
+  } else {
+    missing.push('special request')
+  }
+
+  // What needs to happen
+  if (missing.length > 0) {
+    context.push(`Missing: ${missing.join(', ')} — coordinator assign manually`)
+  } else {
+    context.push('Has data but no team match — coordinator verify placement')
+  }
+
+  return context
+}
+
 // ─── Grand Assignment Algorithm ────────────────────────────────────────────────
 
 interface ScoredTuple {
@@ -208,9 +259,15 @@ export async function runGrandAssignment(season: string): Promise<GrandAssignmen
     if (currentCount >= effectiveMax) continue
 
     // Filter out ROSTER FULL reasons since we're actually assigning
-    const signals = tuple.reasons.filter(r =>
-      !r.includes('ROSTER FULL') && !r.includes('Roster near limit')
+    let signals = tuple.reasons.filter(r =>
+      !r.includes('ROSTER FULL') && !r.includes('Roster near limit') &&
+      !r.includes('No prior data')
     )
+
+    // For zero-score players, surface what we know and what's missing
+    if (tuple.score === 0 || signals.length === 0) {
+      signals = buildPlayerContext(tuple.player)
+    }
 
     const confidence = classifyConfidence(tuple.score, signals)
 
