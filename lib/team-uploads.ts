@@ -2,7 +2,7 @@ import { BatchWriteCommand, ScanCommand } from '@aws-sdk/lib-dynamodb'
 import { db } from './dynamo'
 
 const TEAMS_TABLE = 'egs-teams'
-const ASSIGNMENTS_TABLE = 'egs-assignments'
+const ASSIGNMENTS_TABLE = 'egs-team-assignments'
 
 export interface TeamRecord {
   team_id: string
