@@ -125,7 +125,7 @@ export async function loadMatchingData(season: string) {
   const [rawPlayers, allTeams, allAssignments] = await Promise.all([
     scanTable<Record<string, any>>('egs-players', season),
     scanTable<MatchTeam>('egs-teams'),
-    scanTable<Record<string, any>>('egs-team-assignments'),
+    scanTable<Record<string, any>>('egs-assignments'),
   ])
 
   // Build previous assignment lookup: player_id → most recent rostered team
