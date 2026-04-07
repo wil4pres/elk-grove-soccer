@@ -316,10 +316,15 @@ export function score(
   if (player.prev_team && player.prev_team === team.team_name) {
     total += 3
     reasons.push('Returning to same team')
-    const playerBY = parseInt(player.birth_date?.slice(-4) ?? player.birth_date?.slice(0, 4) ?? '0')
+    // birth_date is stored as YYYY-MM-DD — always take the first 4 chars for the year
+    const playerBY = parseInt(player.birth_date?.slice(0, 4) ?? '0')
     const teamYear = parseInt(team.birth_year || '0')
     if (teamYear && playerBY && teamYear !== playerBY) {
-      reasons.push(`Playing up/down (born ${playerBY}, team ${teamYear}) — coordinator verify`)
+      if (playerBY > teamYear) {
+        // Player is younger than the team age group → playing UP (allowed)
+        reasons.push(`Playing up (born ${playerBY}, team ${teamYear}) — coordinator verify`)
+      }
+      // Play-downs (playerBY < teamYear) are not permitted — do not surface as a signal
     }
   }
 
@@ -567,7 +572,7 @@ function recommend(player: MatchPlayer, suggestions: Suggestion[], allPlayers: M
     if (sib && sib.package_name !== player.package_name) {
       return {
         level: 'red',
-        text: `Sibling request: ${sib.first_name} ${sib.last_name} is registered in ${sib.package_name} (different age group). One player must PLAY UP to be on the same team — only play-ups are allowed, no play-downs. Coordinator must decide which player moves up.`,
+        text: `Sibling request: ${sib.first_name} ${sib.last_name} is registered in ${sib.package_name} (different age group). To place them together, the younger player must play up to the older age group. Coordinator must confirm which player moves up.`,
       }
     }
   }
@@ -801,7 +806,7 @@ export async function runScoring(season: string): Promise<PackageResult[]> {
         // Strategy:
         //   1. Score against ALL same-gender 2026 teams — coach/friend/team name requests
         //      may match a team in a different age group (e.g. coach moved age groups)
-        //   2. If strong signals found (score > 0), surface them with a play-up/down warning
+        //   2. If strong signals found (score > 0), surface them with a play-up note
         //   3. Otherwise fall back to school-based cross-age lookup
         if (teams.length === 0) {
           const genderFull = player.gender === 'F' ? 'Female' : 'Male'
@@ -823,7 +828,7 @@ export async function runScoring(season: string): Promise<PackageResult[]> {
               const reqNote = hasReq ? ` Requested: "${req}".` : ''
               const rec: Recommendation = {
                 level: 'yellow',
-                text: `No ${pkg} (U${playerUAge}) teams in 2026.${reqNote} Best cross-age match: ${top.team} (U${topUAge}, score ${top.score}). Coordinator must confirm age group — only play-ups allowed, no play-downs.`,
+                text: `No ${pkg} (U${playerUAge}) teams in 2026.${reqNote} Best play-up option: ${top.team} (U${topUAge}, score ${top.score}). Coordinator must confirm — player would be playing up to an older age group.`,
               }
               return { player, suggestions: withSignals.slice(0, 3), recommendation: rec }
             }
