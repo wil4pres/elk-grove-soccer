@@ -205,7 +205,7 @@ export default function ChatPage() {
           onKeyDown={handleKeyDown}
           placeholder="Ask about players, teams, or assignments..."
           rows={1}
-          className="flex-1 resize-none border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="flex-1 resize-none border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           disabled={streaming}
         />
         <button
