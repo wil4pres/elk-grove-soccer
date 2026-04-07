@@ -442,8 +442,12 @@ export function score(
     })
     if (sameSchool.length > 0) {
       total += 1
-      const guessLabel = player.extraction_school_guessed ? ` (Augur guess)` : ''
-      reasons.push(`Same school${guessLabel} as ${sameSchool.length} teammate(s)`)
+      const guessLabel = player.extraction_school_guessed ? ` (Augur🧠 guess)` : ''
+      const schoolLabel = player.extraction_school ? ` "${player.extraction_school}"` : ''
+      const teammateRefs = sameSchool
+        .map(tp => `${tp.player_id}:${tp.first_name} ${tp.last_name}`)
+        .join('|')
+      reasons.push(`Same school${guessLabel}${schoolLabel} as teammates [${teammateRefs}]`)
     }
   }
 

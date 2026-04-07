@@ -568,6 +568,35 @@ function ConfBadge({
   )
 }
 
+// Parses signals that contain encoded teammate refs: "...as teammates [id1:Name1|id2:Name2]"
+// Returns an array of React nodes (plain text or links).
+function renderSignal(signal: string): React.ReactNode {
+  const match = signal.match(/^(.*) as teammates \[(.+)\]$/)
+  if (!match) return signal
+  const prefix = match[1]
+  const refs = match[2].split('|').map(ref => {
+    const colonIdx = ref.indexOf(':')
+    return { id: ref.slice(0, colonIdx), name: ref.slice(colonIdx + 1) }
+  })
+  return (
+    <>
+      {prefix} as{' '}
+      {refs.map((ref, i) => (
+        <span key={ref.id}>
+          {i > 0 && ', '}
+          <a
+            href={`#${ref.id}`}
+            className="underline text-blue-700 hover:text-blue-900"
+            onClick={e => e.stopPropagation()}
+          >
+            {ref.name}
+          </a>
+        </span>
+      ))}
+    </>
+  )
+}
+
 function AssignmentTableRow({
   row, isSent, isSending, onAssign, onViewLog,
 }: {
@@ -596,6 +625,7 @@ function AssignmentTableRow({
 
   return (
     <tr
+      id={row.player_id}
       className={`border-t border-gray-100 hover:bg-gray-50 cursor-pointer ${row.confidence === 'red' ? 'bg-red-50/30' : ''}`}
       onClick={() => setExpanded(!expanded)}
     >
@@ -633,7 +663,7 @@ function AssignmentTableRow({
           <div className="flex flex-col gap-1">
             {row.signals.map((s, i) => (
               <span key={i} className="bg-sky-100 text-sky-800 text-[10px] px-1.5 py-0.5 rounded inline-block">
-                {s}
+                {renderSignal(s)}
               </span>
             ))}
             <span className="text-[10px] text-gray-400 italic">click to collapse</span>
@@ -642,7 +672,7 @@ function AssignmentTableRow({
           <div className="flex flex-wrap gap-1">
             {row.signals.slice(0, 3).map((s, i) => (
               <span key={i} className="bg-sky-100 text-sky-800 text-[10px] px-1.5 py-0.5 rounded">
-                {s.length > 50 ? s.slice(0, 47) + '...' : s}
+                {renderSignal(s)}
               </span>
             ))}
             {row.signals.length > 3 && (
