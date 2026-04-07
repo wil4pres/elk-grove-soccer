@@ -11,6 +11,7 @@ const navItems = [
   { href: '/admin/staff', label: 'Staff' },
   { href: '/admin/matching', label: 'Matching' },
   { href: '/admin/assignments', label: 'Assignments' },
+  { href: '/admin/chat', label: 'Chat' },
   { href: '/admin/emails', label: 'Emails' },
   { href: '/admin/inbox', label: 'Inbox' },
   { href: '/admin/uploads', label: 'Uploads' },
