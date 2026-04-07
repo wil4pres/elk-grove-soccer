@@ -59,18 +59,46 @@ interface GrandAssignmentReport {
   generatedAt: string
 }
 
+interface NotificationRecord {
+  notificationId: string
+  player_id: string
+  player_name: string
+  intended_recipient_email: string
+  intended_recipient_name: string
+  actual_recipient_email: string
+  assigned_team_name: string
+  subject: string
+  status: 'queued' | 'sent' | 'failed'
+  resend_id?: string
+  error?: string
+  sent_at?: string
+  created_at: string
+}
+
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AssignmentsPage() {
   const [report, setReport] = useState<GrandAssignmentReport | null>(null)
+  const [notifications, setNotifications] = useState<NotificationRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
   const [sending, setSending] = useState(false)
+  const [sendingPlayerIds, setSendingPlayerIds] = useState<Set<string>>(new Set())
   const [error, setError] = useState('')
   const [sendResult, setSendResult] = useState('')
   const [viewTab, setViewTab] = useState<ViewTab>('assignments')
   const [filterPkg, setFilterPkg] = useState<string | null>(null)
   const [filterConfidence, setFilterConfidence] = useState<Confidence | null>(null)
+  const [emailLogPlayer, setEmailLogPlayer] = useState<{ id: string; name: string } | null>(null)
+
+  const loadNotifications = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/send-assignment-emails')
+      if (!res.ok) return
+      const data = await res.json()
+      setNotifications(data.notifications ?? [])
+    } catch { /* silent */ }
+  }, [])
 
   const loadReport = useCallback(async () => {
     try {
@@ -85,7 +113,15 @@ export default function AssignmentsPage() {
     }
   }, [])
 
-  useEffect(() => { loadReport() }, [loadReport])
+  useEffect(() => {
+    loadReport()
+    loadNotifications()
+  }, [loadReport, loadNotifications])
+
+  // Set of player_ids that have had emails sent
+  const sentPlayerIds = new Set(
+    notifications.filter(n => n.status === 'sent').map(n => n.player_id)
+  )
 
   async function runAssignment() {
     setRunning(true)
@@ -128,8 +164,8 @@ export default function AssignmentsPage() {
     }
   }
 
-  async function sendEmails() {
-    if (!confirm('Send assignment emails? All go to wnewsom@elkgrovesoccer.com (test mode).')) return
+  async function sendAllEmails() {
+    if (!confirm('Send assignment emails for ALL players? All go to wnewsom@elkgrovesoccer.com (test mode).')) return
     setSending(true)
     setSendResult('')
     setError('')
@@ -138,10 +174,29 @@ export default function AssignmentsPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
       setSendResult(data.message)
+      await loadNotifications()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
       setSending(false)
+    }
+  }
+
+  async function sendPlayerEmail(playerId: string) {
+    setSendingPlayerIds(prev => new Set(prev).add(playerId))
+    try {
+      const res = await fetch('/api/admin/send-assignment-emails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerIds: [playerId] }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+      await loadNotifications()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSendingPlayerIds(prev => { const s = new Set(prev); s.delete(playerId); return s })
     }
   }
 
@@ -153,7 +208,6 @@ export default function AssignmentsPage() {
         body: JSON.stringify({ action: 'approve_overflow', playerId }),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      // Re-run to reassign displaced players with new capacity
       await rerunAssignment()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -171,6 +225,10 @@ export default function AssignmentsPage() {
 
   let filteredUnassigned = report?.unassigned ?? []
   if (filterPkg) filteredUnassigned = filteredUnassigned.filter(u => u.package_name === filterPkg)
+
+  const playerEmailLog = emailLogPlayer
+    ? notifications.filter(n => n.player_id === emailLogPlayer.id)
+    : []
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
@@ -204,11 +262,11 @@ export default function AssignmentsPage() {
           {report && (
             <>
               <button
-                onClick={sendEmails}
+                onClick={sendAllEmails}
                 disabled={sending || running}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
               >
-                {sending ? 'Sending...' : '✉ Send Emails'}
+                {sending ? 'Sending...' : '✉ Send All Emails'}
               </button>
               <button
                 onClick={rerunAssignment}
@@ -274,6 +332,7 @@ export default function AssignmentsPage() {
             <StatBadge label={`${report.stats.total_players} total`} />
             <StatBadge label={`${report.stats.assigned} assigned`} variant="green" />
             <StatBadge label={`${report.stats.unassigned} unassigned`} variant={report.stats.unassigned > 0 ? 'red' : undefined} />
+            <StatBadge label={`${sentPlayerIds.size} emailed`} variant={sentPlayerIds.size > 0 ? 'blue' : undefined} />
             <span className="border-l border-gray-300 mx-1" />
             <ConfBadge confidence="green" count={report.stats.green} onClick={() => setFilterConfidence(filterConfidence === 'green' ? null : 'green')} active={filterConfidence === 'green'} />
             <ConfBadge confidence="yellow" count={report.stats.yellow} onClick={() => setFilterConfidence(filterConfidence === 'yellow' ? null : 'yellow')} active={filterConfidence === 'yellow'} />
@@ -333,15 +392,23 @@ export default function AssignmentsPage() {
                     <th className="px-4 py-3 text-left font-semibold">Score</th>
                     <th className="px-4 py-3 text-left font-semibold">Signals</th>
                     <th className="px-4 py-3 text-left font-semibold w-20">By</th>
+                    <th className="px-4 py-3 text-left font-semibold w-40">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredAssignments.map(a => (
-                    <AssignmentTableRow key={a.player_id} row={a} />
+                    <AssignmentTableRow
+                      key={a.player_id}
+                      row={a}
+                      isSent={sentPlayerIds.has(a.player_id)}
+                      isSending={sendingPlayerIds.has(a.player_id)}
+                      onAssign={() => sendPlayerEmail(a.player_id)}
+                      onViewLog={() => setEmailLogPlayer({ id: a.player_id, name: a.player_name })}
+                    />
                   ))}
                   {filteredAssignments.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-gray-400 italic">
+                      <td colSpan={8} className="px-4 py-8 text-center text-gray-400 italic">
                         No assignments match current filters
                       </td>
                     </tr>
@@ -456,16 +523,26 @@ export default function AssignmentsPage() {
           )}
         </>
       )}
+
+      {/* Email Log Modal */}
+      {emailLogPlayer && (
+        <EmailLogModal
+          playerName={emailLogPlayer.name}
+          logs={playerEmailLog}
+          onClose={() => setEmailLogPlayer(null)}
+        />
+      )}
     </div>
   )
 }
 
 // ─── Sub-components ─────────────────────────────────────────────────────────────
 
-function StatBadge({ label, variant }: { label: string; variant?: 'green' | 'red' }) {
+function StatBadge({ label, variant }: { label: string; variant?: 'green' | 'red' | 'blue' }) {
   const cls =
     variant === 'green' ? 'bg-green-50 border-green-300 text-green-800 font-semibold' :
-    variant === 'red' ? 'bg-red-50 border-red-300 text-red-800 font-semibold' :
+    variant === 'red'   ? 'bg-red-50 border-red-300 text-red-800 font-semibold' :
+    variant === 'blue'  ? 'bg-blue-50 border-blue-300 text-blue-800 font-semibold' :
     'bg-white border-gray-200 text-gray-500'
   return <span className={`border rounded-md px-3 py-1.5 text-xs ${cls}`}>{label}</span>
 }
@@ -491,8 +568,17 @@ function ConfBadge({
   )
 }
 
-function AssignmentTableRow({ row }: { row: AssignmentRow }) {
+function AssignmentTableRow({
+  row, isSent, isSending, onAssign, onViewLog,
+}: {
+  row: AssignmentRow
+  isSent: boolean
+  isSending: boolean
+  onAssign: () => void
+  onViewLog: () => void
+}) {
   const [expanded, setExpanded] = useState(false)
+
   const confColor = {
     green: 'bg-green-500',
     yellow: 'bg-amber-400',
@@ -507,8 +593,6 @@ function AssignmentTableRow({ row }: { row: AssignmentRow }) {
 
   const scorePct = Math.min(100, (row.score / 10) * 100)
   const scoreBarColor = row.score >= 5 ? 'bg-green-500' : row.score >= 3 ? 'bg-amber-500' : 'bg-gray-400'
-  const visibleSignals = expanded ? row.signals : row.signals.slice(0, 3)
-  const hasMore = row.signals.length > 3
 
   return (
     <tr
@@ -578,6 +662,121 @@ function AssignmentTableRow({ row }: { row: AssignmentRow }) {
           <span className="text-[10px] text-gray-400">Auto</span>
         )}
       </td>
+
+      {/* Actions */}
+      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-1.5">
+          {isSent ? (
+            <span className="px-2.5 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-semibold border border-green-200">
+              ✓ Sent
+            </span>
+          ) : (
+            <button
+              onClick={onAssign}
+              disabled={isSending}
+              className="px-2.5 py-1 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {isSending ? '...' : 'Assign'}
+            </button>
+          )}
+          <button
+            onClick={onViewLog}
+            className="px-2.5 py-1 bg-white border border-gray-300 text-gray-600 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors whitespace-nowrap"
+          >
+            Email Log
+          </button>
+        </div>
+      </td>
     </tr>
+  )
+}
+
+// ─── Email Log Modal ──────────────────────────────────────────────────────────
+
+function EmailLogModal({
+  playerName, logs, onClose,
+}: {
+  playerName: string
+  logs: NotificationRecord[]
+  onClose: () => void
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Modal header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Email Log — {playerName}</h2>
+            <p className="text-xs text-gray-500 mt-0.5">All emails sent for this player</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Modal body */}
+        <div className="overflow-y-auto flex-1 p-6">
+          {logs.length === 0 ? (
+            <div className="text-center text-gray-400 py-8">
+              <p className="font-medium mb-1">No emails sent yet for this player</p>
+              <p className="text-sm">Click "Assign" on the row to send an assignment email</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {logs.map(log => (
+                <div key={log.notificationId} className="border border-gray-200 rounded-xl p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <p className="font-semibold text-gray-900 text-sm">{log.subject}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {log.sent_at ? new Date(log.sent_at).toLocaleString() : 'Not yet sent'}
+                      </p>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      log.status === 'sent' ? 'bg-green-100 text-green-800' :
+                      log.status === 'failed' ? 'bg-red-100 text-red-800' :
+                      'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {log.status}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+                      <p className="text-amber-700 font-semibold mb-1">⚠️ Would have gone to:</p>
+                      <p className="text-gray-800 font-medium">{log.intended_recipient_name}</p>
+                      <p className="text-gray-500">{log.intended_recipient_email}</p>
+                    </div>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5">
+                      <p className="text-blue-700 font-semibold mb-1">✉ Actually sent to:</p>
+                      <p className="text-gray-800 font-medium">{log.actual_recipient_email}</p>
+                      <p className="text-gray-500">(test mode)</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-2.5 text-xs text-gray-500">
+                    <span className="font-medium">Team: </span>{log.assigned_team_name}
+                    {log.resend_id && <span className="ml-3 text-gray-400">Resend ID: {log.resend_id}</span>}
+                  </div>
+
+                  {log.error && (
+                    <p className="mt-2 text-xs text-red-600 bg-red-50 rounded-lg p-2">{log.error}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
