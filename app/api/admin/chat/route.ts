@@ -3,7 +3,9 @@ import { isSessionValid } from '@/lib/auth/session'
 import Anthropic from '@anthropic-ai/sdk'
 import { tools, executeTool, SYSTEM_PROMPT } from '@/lib/coordinator-chat'
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+function getClient() {
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+}
 
 interface ChatMessage {
   role: 'user' | 'assistant'
@@ -63,6 +65,7 @@ async function runConversation(
     let toolUseBlocks: Anthropic.ToolUseBlock[] = []
 
     // Stream the response
+    const client = getClient()
     const stream = client.messages.stream({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 2048,
