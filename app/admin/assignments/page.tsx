@@ -65,7 +65,9 @@ export default function AssignmentsPage() {
   const [report, setReport] = useState<GrandAssignmentReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
+  const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const [sendResult, setSendResult] = useState('')
   const [viewTab, setViewTab] = useState<ViewTab>('assignments')
   const [filterPkg, setFilterPkg] = useState<string | null>(null)
   const [filterConfidence, setFilterConfidence] = useState<Confidence | null>(null)
@@ -126,6 +128,23 @@ export default function AssignmentsPage() {
     }
   }
 
+  async function sendEmails() {
+    if (!confirm('Send assignment emails? All go to wnewsom@elkgrovesoccer.com (test mode).')) return
+    setSending(true)
+    setSendResult('')
+    setError('')
+    try {
+      const res = await fetch('/api/admin/send-assignment-emails', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+      setSendResult(data.message)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSending(false)
+    }
+  }
+
   async function approveOverflow(playerId: string) {
     try {
       const res = await fetch('/api/admin/grand-assignment', {
@@ -183,13 +202,22 @@ export default function AssignmentsPage() {
         </div>
         <div className="flex items-center gap-2">
           {report && (
-            <button
-              onClick={rerunAssignment}
-              disabled={running}
-              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
-            >
-              {running ? 'Re-running...' : 'Re-run (keep overrides)'}
-            </button>
+            <>
+              <button
+                onClick={sendEmails}
+                disabled={sending || running}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              >
+                {sending ? 'Sending...' : '✉ Send Emails'}
+              </button>
+              <button
+                onClick={rerunAssignment}
+                disabled={running}
+                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              >
+                {running ? 'Re-running...' : 'Re-run (keep overrides)'}
+              </button>
+            </>
           )}
           <button
             onClick={runAssignment}
@@ -205,6 +233,12 @@ export default function AssignmentsPage() {
           </button>
         </div>
       </div>
+
+      {sendResult && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
+          <p className="text-green-800 text-sm font-medium">{sendResult}</p>
+        </div>
+      )}
 
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
