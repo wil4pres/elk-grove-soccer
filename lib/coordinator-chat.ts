@@ -33,6 +33,19 @@ export const tools: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'list_teams',
+    description: 'List all teams for the 2026 season. Can filter by birth year, gender, or partial team name. Returns team name, coach, birth year, gender, practice field, and roster capacity.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        birth_year: { type: 'string', description: 'Filter by birth year (e.g. "2017", "2015")' },
+        gender: { type: 'string', description: 'Filter by gender: "Boys" or "Girls" (or "B"/"G", "Male"/"Female")' },
+        name: { type: 'string', description: 'Partial team name search (e.g. "Destroyers", "Firehawks")' },
+      },
+      required: [],
+    },
+  },
+  {
     name: 'get_team_roster',
     description: 'Get a team roster showing the team name, coach, how many players are assigned, capacity limits, and the list of assigned players. Can search by team name or team ID.',
     input_schema: {
@@ -88,6 +101,7 @@ export async function executeTool(
 ): Promise<string> {
   switch (name) {
     case 'list_players': return await listPlayers(input)
+    case 'list_teams': return await listTeams(input)
     case 'get_team_roster': return await getTeamRoster(input)
     case 'assign_player': return await assignPlayer(input)
     case 'get_report': return await getReport()
@@ -149,6 +163,42 @@ async function listPlayers(input: Record<string, unknown>): Promise<string> {
     ].filter(Boolean).join(' | ')
     return parts
   }).join('\n')
+}
+
+async function listTeams(input: Record<string, unknown>): Promise<string> {
+  const { currentTeams, seasonYear, teamRosterCount } = await loadMatchingData(SEASON)
+
+  let results = currentTeams
+
+  if (input.birth_year) {
+    const q = String(input.birth_year)
+    results = results.filter(t => t.birth_year === q)
+  }
+
+  if (input.gender) {
+    const g = String(input.gender).toLowerCase()
+    results = results.filter(t => {
+      const tg = t.gender.toLowerCase()
+      return tg === g || tg.startsWith(g.charAt(0)) ||
+        (g.includes('boy') && (tg === 'male' || tg === 'b')) ||
+        (g.includes('girl') && (tg === 'female' || tg === 'g'))
+    })
+  }
+
+  if (input.name) {
+    const q = String(input.name).toLowerCase()
+    results = results.filter(t => t.team_name.toLowerCase().includes(q))
+  }
+
+  if (results.length === 0) return 'No teams found matching that criteria.'
+
+  return results
+    .sort((a, b) => a.team_name.localeCompare(b.team_name))
+    .map(t => {
+      const { preferred, max } = teamCapacity(t.birth_year, seasonYear)
+      const count = teamRosterCount.get(t.team_name) ?? 0
+      return `**${t.team_name}** | Coach: ${t.coach_last_name} | Field: ${t.practice_field ?? 'Not set'} | Roster: ${count}/${preferred} (max ${max})`
+    }).join('\n')
 }
 
 async function getTeamRoster(input: Record<string, unknown>): Promise<string> {
