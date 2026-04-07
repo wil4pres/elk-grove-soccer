@@ -686,6 +686,11 @@ function recommend(player: MatchPlayer, suggestions: Suggestion[], allPlayers: M
 // When no eligible teams exist for a player's birth year/gender, look at same-
 // gender players from the same school (within ±2 birth years) and find which
 // current-season teams their schoolmates are on. Ranked by schoolmate count.
+//
+// RULE: NO PLAY-DOWNS. Players may only play UP (older age group), never down.
+// Play-downs are not permitted by club policy and are extremely rare even as
+// coordinator overrides. The ±2 birth year window here is for school-cluster
+// discovery only — final placement decisions belong to the coordinator.
 
 function getCrossAgeSuggestions(
   player: MatchPlayer,

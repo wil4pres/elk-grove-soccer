@@ -805,6 +805,14 @@ Roster counts come from `egs-assignments` records with `assignment_status = 'ros
 - **Detection:** AI `siblings[]` field preferred. Fallback: regex on `"Player- Name (brother/sister)"` pattern.
 - **Play-up rule:** Only playing up is allowed. Playing down is never permitted.
 
+### Play-Down Policy (Critical Rule)
+
+**There are no play-downs at Elk Grove Soccer.**
+
+A player may never be assigned to a team in a younger age group than their own birth year. Play-ups (assigning a younger player to an older age group) are allowed and occur regularly. Play-downs are prohibited by club policy and must never be suggested or auto-assigned by the engine.
+
+**Exceptions:** Play-downs can occur in extreme, rare circumstances (e.g., a medical or developmental situation) but only as an explicit coordinator override — never as an AI suggestion. The engine must never recommend a play-down. If a coordinator applies one manually, it should be flagged in the UI as an override requiring acknowledgment.
+
 ### School Lookup — EGUSD ArcGIS
 
 Public endpoint: `https://webmaps.elkgrove.gov/arcgis/rest/services/OPEN_DATA_PORTAL/EGUSD_Schools/MapServer/0/query`
@@ -864,6 +872,78 @@ Do NOT use default AWS CLI credentials — the app uses a separate IAM user (`DY
 8. 🔲 `egs-assignments` write — coordinator accepts suggestion → writes to DynamoDB
 9. 🔲 Parent confirmation email (Resend) on assignment
 10. 🔲 PlayMetrics webhook or polling trigger for real-time auto-assignment
+
+---
+
+## Product Vision & Commercialization Strategy
+
+*(Documented 2026-04-07 — strategic discussion summary)*
+
+### What's Missing / Functional Gaps to Build
+
+**Coordinator workflows:**
+- No bulk-approve/reject flow before emails go out — assignments are fire-and-forget today
+- No coach portal — coaches can't see their own roster or confirm receipt
+- No waitlist management — no flow for when a team fills mid-season and new registrations arrive
+- No conflict resolution UI for competing "together" requests across packages
+- No undo/rollback for grand assignment runs
+- No audit trail UI showing why a coordinator override was made
+
+**Parent-facing gaps:**
+- No self-service portal — parents can only receive an email, can't check status, update preferences, or confirm receipt
+- No opt-out or preference update flow post-registration
+- No coach contact info delivered to parents post-assignment
+
+**Operations:**
+- Season hardcoded as '2026' across multiple files — needs a season setup wizard
+- No registration import pipeline (GoMotion/Demosphere CSV or API)
+- No scheduler for automatic email sends after coordinator approval
+
+---
+
+### Innovative Differentiators
+
+Things that make this product genuinely different from SportsConnect, TeamSnap, GotSoccer:
+
+1. **AI school clustering** — no competitor automatically infers school from free-text and clusters teammates. Novel for rec soccer.
+2. **Confidence scoring with explainability** — coordinators see *why* a match was made at the signal level, not just who was assigned.
+3. **Coordinator Chat** — natural language queries over live season data. No competitor has this.
+4. **Global greedy assignment engine** — competitors are first-come-first-served or fully manual. Globally optimal assignment is a real differentiator.
+
+---
+
+### Monetization Model
+
+**Target buyers:**
+- Recreational soccer leagues (primary)
+- Expansion sports: baseball, basketball, volleyball — same coordinator pain
+- Regional league management companies running multiple orgs
+
+**Pricing models to evaluate:**
+- Per-season per-player ($0.50–$1.00/player) — scales with value delivered
+- Flat SaaS per league per season ($500–$2,000/season) — simpler to sell
+- Tiered by feature — assignment engine as base, AI chat + email automation as premium
+
+**Elk Grove Soccer deal:** Perpetual free license in exchange for being the development partner and case study that enables the product to be sold to others.
+
+**Competitive moat:** AI chat + explainability stack is hard to replicate quickly. School inference saves coordinators hours of phone calls — lead with this in sales conversations.
+
+**Pre-sales requirement:** Get 2–3 more leagues on a free pilot to validate product-market fit before writing multi-tenant infrastructure. Pricing model depends on whether buyers are small rec leagues ($300/season budget) or regional associations ($5K+ budget) — these are different products.
+
+---
+
+### Multi-Tenancy & PII Architecture (Future)
+
+**Open questions that must be answered before building:**
+
+1. **Isolation model** — database-per-tenant (strongest, most expensive), separate DynamoDB table prefixes per org (middle ground), or row-level tenant isolation (cheapest, highest risk). Given children's data, database-per-tenant or table-prefix isolation is strongly preferred.
+2. **Data ownership** — does the league own the data or do the parents? Drives retention, deletion, and export obligations.
+3. **COPPA** — players under 13 put this in federal compliance territory. Determine if the league handles this or if the platform must.
+4. **Data residency** — international customers trigger GDPR. Decide before architecture is locked.
+5. **Authentication** — current single admin password must become org-scoped auth (Cognito or Auth0) with roles: superadmin, league admin, coordinator, coach, parent.
+6. **AI data handling disclosure** — player names and school data are sent to Anthropic's API. Terms of service must disclose this; Anthropic's data processing terms must be reviewed for PII acceptability.
+
+---
 
 ### Team Cloning + Unrostering Rule (Critical)
 
