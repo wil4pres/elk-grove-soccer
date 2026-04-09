@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { isSessionValid } from '@/lib/auth/session'
 import { loadReport } from '@/lib/grand-assignment'
 import { sendAssignmentEmail, loadNotifications } from '@/lib/email'
 import { loadMatchingData } from '@/lib/matching-engine'
@@ -9,11 +8,6 @@ const SEASON = '2026'
 
 /** GET — load the notification log */
 export async function GET(req: NextRequest) {
-  const token = req.cookies.get('admin_session')?.value
-  if (!token || !(await isSessionValid(token))) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
   try {
     const notifications = await loadNotifications(SEASON)
     return NextResponse.json({ notifications })
@@ -25,11 +19,6 @@ export async function GET(req: NextRequest) {
 
 /** POST — send confirmation emails for all assigned players */
 export async function POST(req: NextRequest) {
-  const token = req.cookies.get('admin_session')?.value
-  if (!token || !(await isSessionValid(token))) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
   try {
     const body = await req.json().catch(() => ({}))
     // Optional: send only for specific player_ids

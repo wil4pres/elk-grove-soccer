@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { isSessionValid } from '@/lib/auth/session'
 import {
   runGrandAssignment,
   loadReport,
@@ -13,11 +12,6 @@ const SEASON = '2026'
 
 /** GET — load the current grand assignment report */
 export async function GET(req: NextRequest) {
-  const token = req.cookies.get('admin_session')?.value
-  if (!token || !(await isSessionValid(token))) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
   try {
     const report = await loadReport(SEASON)
     if (!report) {
@@ -33,11 +27,6 @@ export async function GET(req: NextRequest) {
 
 /** POST — run the grand assignment (or perform coordinator actions) */
 export async function POST(req: NextRequest) {
-  const token = req.cookies.get('admin_session')?.value
-  if (!token || !(await isSessionValid(token))) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
   try {
     const body = await req.json().catch(() => ({}))
     const action = body.action ?? 'run'

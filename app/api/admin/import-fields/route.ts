@@ -1,39 +1,9 @@
-import { cookies } from 'next/headers'
 import { BatchWriteCommand, ScanCommand } from '@aws-sdk/lib-dynamodb'
 import { db } from '@/lib/dynamo'
-import { ok, badRequest, unauthorized, serverError } from '@/lib/api-helpers'
+import { ok, badRequest, serverError } from '@/lib/api-helpers'
 import { logAudit, getAuditIP } from '@/lib/audit'
 
 const FIELDS_TABLE = 'egs-fields'
-
-async function verifySession(): Promise<boolean> {
-  const cookieStore = await cookies()
-  const token = cookieStore.get('admin_session')?.value
-  if (!token) return false
-
-  const parts = token.split('.')
-  if (parts.length !== 3) return false
-
-  try {
-    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
-    if (!payload.admin) return false
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return false
-
-    const secret = process.env.SESSION_SECRET ?? 'dev-secret-change-in-production'
-    const keyData = new TextEncoder().encode(secret)
-    const key = await crypto.subtle.importKey(
-      'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']
-    )
-    const sigInput = new TextEncoder().encode(`${parts[0]}.${parts[1]}`)
-    const sigBytes = Uint8Array.from(
-      atob(parts[2].replace(/-/g, '+').replace(/_/g, '/')),
-      c => c.charCodeAt(0)
-    )
-    return await crypto.subtle.verify('HMAC', key, sigBytes, sigInput)
-  } catch {
-    return false
-  }
-}
 
 async function deleteAllFields(): Promise<void> {
   // Scan and delete all existing fields
@@ -81,8 +51,6 @@ async function batchWrite(items: Record<string, unknown>[]): Promise<void> {
 }
 
 export async function POST(req: Request) {
-  if (!(await verifySession())) return unauthorized()
-
   try {
     const { rows } = (await req.json()) as { rows: Record<string, string>[] }
 

@@ -153,6 +153,14 @@ export async function middleware(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 })
     }
 
+    // Session check for all /api/admin/* routes except login
+    if (pathname.startsWith('/api/admin/') && pathname !== '/api/admin/login') {
+      const token = req.cookies.get(COOKIE_NAME)?.value
+      if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      const valid = await verifyToken(token)
+      if (!valid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     return NextResponse.next()
   }
 

@@ -1,5 +1,4 @@
 import { NextRequest } from 'next/server'
-import { isSessionValid } from '@/lib/auth/session'
 import Anthropic from '@anthropic-ai/sdk'
 import { tools, executeTool, SYSTEM_PROMPT } from '@/lib/coordinator-chat'
 
@@ -13,14 +12,6 @@ interface ChatMessage {
 }
 
 export async function POST(req: NextRequest) {
-  const token = req.cookies.get('admin_session')?.value
-  if (!token || !(await isSessionValid(token))) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
-
   const { messages } = (await req.json()) as { messages: ChatMessage[] }
 
   const encoder = new TextEncoder()
