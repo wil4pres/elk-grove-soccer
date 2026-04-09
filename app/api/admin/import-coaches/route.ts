@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import { csvRowToCoach, replaceCoachesForSeason } from '@/lib/coaches'
 import { ok, badRequest, unauthorized, serverError } from '@/lib/api-helpers'
+import { logAudit, getAuditIP } from '@/lib/audit'
 
 async function verifySession(): Promise<boolean> {
   const cookieStore = await cookies()
@@ -45,6 +46,8 @@ export async function POST(req: Request) {
 
     console.log(`[import-coaches] Processing ${coaches.length} coaches for season ${season}`)
     const result = await replaceCoachesForSeason(coaches, season)
+
+    logAudit({ action: 'import_coaches', ip: getAuditIP(req), detail: { count: coaches.length, season } })
 
     return ok({
       total: rows.length,

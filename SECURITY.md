@@ -237,7 +237,7 @@ Even in test mode (where all emails go to the test address), the `egs-notificati
 | 🔴 Immediate | PII (player names) logged to CloudWatch | Low | ✅ Fixed |
 | 🔴 Immediate | Rotate all exposed credentials | Low | ⏳ Pending |
 | 🔴 Immediate | Per-user admin accounts | High | ⏳ Deferred |
-| 🟠 Before Launch | Enable DynamoDB encryption at rest | Low | — |
+| 🟠 Before Launch | Enable DynamoDB encryption at rest | Low | ✅ Already on (AWS default AES-256) |
 | 🟠 Before Launch | Add audit logging | Medium | — |
 | 🟠 Before Launch | Add security response headers | Low | — |
 | 🟠 Before Launch | Add input validation (Zod) to CSV imports | Medium | — |

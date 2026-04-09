@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import { csvRowToAssignment, insertTeamsAndAssignments } from '@/lib/team-uploads'
 import { ok, badRequest, unauthorized, serverError } from '@/lib/api-helpers'
+import { logAudit, getAuditIP } from '@/lib/audit'
 
 async function verifySession(): Promise<boolean> {
   const cookieStore = await cookies()
@@ -45,6 +46,8 @@ export async function POST(req: Request) {
 
     const season = assignments[0].season
     const result = await insertTeamsAndAssignments(assignments)
+
+    logAudit({ action: 'import_teams', ip: getAuditIP(req), detail: { count: assignments.length, season } })
 
     return ok({
       total: rows.length,

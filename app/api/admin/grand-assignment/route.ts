@@ -7,6 +7,7 @@ import {
   approveOverflow,
   clearAssignments,
 } from '@/lib/grand-assignment'
+import { logAudit } from '@/lib/audit'
 
 const SEASON = '2026'
 
@@ -41,11 +42,13 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}))
     const action = body.action ?? 'run'
 
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
+
     switch (action) {
       case 'run': {
-        // Clear previous assignments and re-run
         await clearAssignments(SEASON)
         const report = await runGrandAssignment(SEASON)
+        logAudit({ action: 'run_grand_assignment', ip, detail: { season: SEASON } })
         return NextResponse.json({ report })
       }
 
@@ -55,6 +58,7 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: 'Missing playerId, teamId, or teamName' }, { status: 400 })
         }
         const row = await overrideAssignment(playerId, SEASON, teamId, teamName)
+        logAudit({ action: 'override_assignment', ip, detail: { playerId, teamId, teamName } })
         return NextResponse.json({ assignment: row })
       }
 
@@ -64,12 +68,13 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: 'Missing playerId' }, { status: 400 })
         }
         await approveOverflow(playerId, SEASON)
+        logAudit({ action: 'approve_overflow', ip, detail: { playerId } })
         return NextResponse.json({ ok: true })
       }
 
       case 'rerun': {
-        // Re-run preserving coordinator overrides
         const report = await runGrandAssignment(SEASON)
+        logAudit({ action: 'run_grand_assignment', ip, detail: { season: SEASON, rerun: true } })
         return NextResponse.json({ report })
       }
 

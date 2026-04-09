@@ -3,6 +3,7 @@ import { isSessionValid } from '@/lib/auth/session'
 import { loadReport } from '@/lib/grand-assignment'
 import { sendAssignmentEmail, loadNotifications } from '@/lib/email'
 import { loadMatchingData } from '@/lib/matching-engine'
+import { logAudit } from '@/lib/audit'
 
 const SEASON = '2026'
 
@@ -94,6 +95,9 @@ export async function POST(req: NextRequest) {
         await new Promise(r => setTimeout(r, 200))
       }
     }
+
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
+    logAudit({ action: 'send_emails', ip, detail: { sent: results.sent, failed: results.failed, season: SEASON } })
 
     return NextResponse.json({
       ok: true,

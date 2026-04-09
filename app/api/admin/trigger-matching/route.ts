@@ -3,6 +3,7 @@ import { PutCommand, GetCommand } from '@aws-sdk/lib-dynamodb'
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs'
 import { db } from '@/lib/dynamo'
 import { cookies } from 'next/headers'
+import { logAudit } from '@/lib/audit'
 
 const STATE_TABLE = 'egs-matching-state'
 const STATE_ID = 'matching'
@@ -115,6 +116,8 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   await setState({ status: 'idle', resetAt: new Date().toISOString() })
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
+  logAudit({ action: 'reset_matching', ip })
   return NextResponse.json({ status: 'idle' })
 }
 
@@ -160,6 +163,8 @@ export async function POST(req: NextRequest) {
       stepProgress: { current: 0, total: 0 },
     })
 
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
+    logAudit({ action: 'run_matching', ip, detail: { season: SEASON, messageId: result.MessageId } })
     return NextResponse.json({ status: 'started', messageId: result.MessageId })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)

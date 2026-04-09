@@ -2,6 +2,7 @@ import { cookies } from 'next/headers'
 import { BatchWriteCommand, ScanCommand } from '@aws-sdk/lib-dynamodb'
 import { db } from '@/lib/dynamo'
 import { ok, badRequest, unauthorized, serverError } from '@/lib/api-helpers'
+import { logAudit, getAuditIP } from '@/lib/audit'
 
 const FIELDS_TABLE = 'egs-fields'
 
@@ -129,6 +130,8 @@ export async function POST(req: Request) {
     if (fields.length > 0) {
       await batchWrite(fields as Record<string, unknown>[])
     }
+
+    logAudit({ action: 'import_fields', ip: getAuditIP(req), detail: { inserted, skipped } })
 
     return ok({
       total: rows.length,
