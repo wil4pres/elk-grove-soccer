@@ -5,22 +5,34 @@ import { compare } from 'bcryptjs'
 export async function GET(req: NextRequest) {
   const password = req.nextUrl.searchParams.get('p') ?? ''
 
+  // Check env
   const envInfo = {
     ADMIN_PASSWORD_len: (process.env.ADMIN_PASSWORD ?? '').length,
     DYNAMO_ACCESS_KEY_ID_prefix: (process.env.DYNAMO_ACCESS_KEY_ID ?? '').substring(0, 6),
-    DYNAMO_REGION: process.env.DYNAMO_REGION ?? '',
-    AWS_REGION: process.env.AWS_REGION ?? '',
-    AWS_EXECUTION_ENV: process.env.AWS_EXECUTION_ENV ?? '',
+    DYNAMO_REGION: process.env.DYNAMO_REGION ?? '(not set)',
+    AWS_REGION: process.env.AWS_REGION ?? '(not set)',
+    AWS_EXECUTION_ENV: process.env.AWS_EXECUTION_ENV ?? '(not set)',
     AWS_ACCESS_KEY_ID_prefix: (process.env.AWS_ACCESS_KEY_ID ?? '').substring(0, 6),
   }
 
-  // Try SSM with explicit credentials if available
+  // Test DynamoDB
+  let dynamoOk = false
+  let dynamoError = ''
+  try {
+    const { DynamoDBClient, ListTablesCommand } = await import('@aws-sdk/client-dynamodb')
+    const dynamo = new DynamoDBClient({ region: 'us-east-1' })
+    const res = await dynamo.send(new ListTablesCommand({ Limit: 1 }))
+    dynamoOk = true
+  } catch (e) {
+    dynamoError = e instanceof Error ? e.message : String(e)
+  }
+
+  // Test SSM with DYNAMO creds fallback
   let ssmValue = ''
   let ssmError = ''
   try {
     const { SSMClient, GetParameterCommand } = await import('@aws-sdk/client-ssm')
-    const region = process.env.DYNAMO_REGION ?? process.env.AWS_REGION ?? 'us-east-1'
-    const ssmConfig: Record<string, unknown> = { region }
+    const ssmConfig: Record<string, unknown> = { region: 'us-east-1' }
     if (process.env.DYNAMO_ACCESS_KEY_ID) {
       ssmConfig.credentials = {
         accessKeyId: process.env.DYNAMO_ACCESS_KEY_ID,
@@ -47,12 +59,12 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     envInfo,
+    dynamoOk,
+    dynamoError,
     ssmValueLen: ssmValue.length,
-    ssmValuePrefix: ssmValue.substring(0, 7),
     ssmError,
     storedHashLen: storedHash.length,
     compareResult,
     compareError,
-    passwordLen: password.length,
   })
 }
