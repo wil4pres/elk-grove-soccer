@@ -19,8 +19,16 @@ async function goToMatching(page: Page) {
   await page.waitForTimeout(500)
 }
 
+async function getCsrfToken(page: Page): Promise<string> {
+  const cookies = await page.context().cookies()
+  return cookies.find(c => c.name === 'csrf_token')?.value ?? ''
+}
+
 async function resetState(page: Page) {
-  const res = await page.request.delete('/api/admin/trigger-matching')
+  const csrf = await getCsrfToken(page)
+  const res = await page.request.delete('/api/admin/trigger-matching', {
+    headers: { 'x-csrf-token': csrf },
+  })
   expect(res.status()).toBe(200)
 }
 
@@ -197,20 +205,27 @@ test.describe('Matching API — state', () => {
   })
 
   test('DELETE resets to idle', async ({ page }) => {
-    const res = await page.request.delete('/api/admin/trigger-matching')
+    const csrf = await getCsrfToken(page)
+    const res = await page.request.delete('/api/admin/trigger-matching', {
+      headers: { 'x-csrf-token': csrf },
+    })
     expect(res.status()).toBe(200)
     expect((await res.json()).status).toBe('idle')
   })
 
   test('DELETE → GET confirms idle', async ({ page }) => {
-    await page.request.delete('/api/admin/trigger-matching')
+    const csrf = await getCsrfToken(page)
+    await page.request.delete('/api/admin/trigger-matching', { headers: { 'x-csrf-token': csrf } })
     const body = await (await page.request.get('/api/admin/trigger-matching')).json()
     expect(body.status).toBe('idle')
   })
 
   test('POST returns started (SQS) or 500 (queue unreachable)', async ({ page }) => {
-    await page.request.delete('/api/admin/trigger-matching')
-    const res = await page.request.post('/api/admin/trigger-matching')
+    const csrf = await getCsrfToken(page)
+    await page.request.delete('/api/admin/trigger-matching', { headers: { 'x-csrf-token': csrf } })
+    const res = await page.request.post('/api/admin/trigger-matching', {
+      headers: { 'x-csrf-token': csrf },
+    })
     const body = await res.json()
     if (res.status() === 200) {
       expect(body.status).toBe('started')
@@ -221,19 +236,24 @@ test.describe('Matching API — state', () => {
       expect([500, 409]).toContain(res.status())
       expect(body.error).toBeDefined()
     }
-    await page.request.delete('/api/admin/trigger-matching')
+    await page.request.delete('/api/admin/trigger-matching', { headers: { 'x-csrf-token': csrf } })
   })
 
   test('second POST while running returns 409', async ({ page }) => {
-    await page.request.delete('/api/admin/trigger-matching')
-    const first = await page.request.post('/api/admin/trigger-matching')
+    const csrf = await getCsrfToken(page)
+    await page.request.delete('/api/admin/trigger-matching', { headers: { 'x-csrf-token': csrf } })
+    const first = await page.request.post('/api/admin/trigger-matching', {
+      headers: { 'x-csrf-token': csrf },
+    })
     if (first.status() !== 200) {
       test.skip(true, 'SQS not available')
       return
     }
-    const second = await page.request.post('/api/admin/trigger-matching')
+    const second = await page.request.post('/api/admin/trigger-matching', {
+      headers: { 'x-csrf-token': csrf },
+    })
     expect(second.status()).toBe(409)
-    await page.request.delete('/api/admin/trigger-matching')
+    await page.request.delete('/api/admin/trigger-matching', { headers: { 'x-csrf-token': csrf } })
   })
 })
 

@@ -148,17 +148,18 @@ export async function middleware(req: NextRequest) {
       }
     }
 
-    // CSRF check for admin mutation routes
-    if (!checkCsrf(req)) {
-      return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 })
-    }
-
-    // Session check for all /api/admin/* routes except login
+    // For admin routes: check session BEFORE CSRF so unauthenticated requests
+    // get 401 (not 403) and CSRF only applies to verified sessions.
     if (pathname.startsWith('/api/admin/') && pathname !== '/api/admin/login') {
       const token = req.cookies.get(COOKIE_NAME)?.value
       if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
       const valid = await verifyToken(token)
       if (!valid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+      // CSRF check after session is confirmed
+      if (!checkCsrf(req)) {
+        return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 })
+      }
     }
 
     return NextResponse.next()
