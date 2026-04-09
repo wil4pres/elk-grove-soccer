@@ -110,6 +110,25 @@ async function verifyToken(token: string): Promise<boolean> {
   }
 }
 
+// ── CSRF protection ───────────────────────────────────────────────────────────
+
+const CSRF_MUTATING_METHODS = new Set(['POST', 'PUT', 'DELETE', 'PATCH'])
+// Login has no session yet — skip CSRF there
+const CSRF_EXEMPT = new Set(['/api/admin/login'])
+
+function checkCsrf(req: NextRequest): boolean {
+  const { pathname } = req.nextUrl
+  if (!CSRF_MUTATING_METHODS.has(req.method)) return true
+  if (CSRF_EXEMPT.has(pathname)) return true
+  if (!pathname.startsWith('/api/admin/')) return true
+
+  const cookieToken = req.cookies.get('csrf_token')?.value
+  const headerToken = req.headers.get('x-csrf-token')
+
+  if (!cookieToken || !headerToken) return false
+  return cookieToken === headerToken
+}
+
 // ── Middleware entry ──────────────────────────────────────────────────────────
 
 export async function middleware(req: NextRequest) {
@@ -128,6 +147,12 @@ export async function middleware(req: NextRequest) {
         return tooManyRequests(retryAfterSec)
       }
     }
+
+    // CSRF check for admin mutation routes
+    if (!checkCsrf(req)) {
+      return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 })
+    }
+
     return NextResponse.next()
   }
 

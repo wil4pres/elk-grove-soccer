@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
       .sign(getSecret())
 
     logAudit({ action: 'login', ip })
+    const csrfToken = crypto.randomUUID()
     const response = NextResponse.json({ success: true })
     response.cookies.set('admin_session', token, {
       httpOnly: true,
@@ -51,6 +52,14 @@ export async function POST(req: NextRequest) {
       path: '/',
       maxAge: 60 * 60 * 24,
       sameSite: 'lax',
+    })
+    // Not httpOnly so client JS can read and submit it as x-csrf-token header
+    response.cookies.set('csrf_token', csrfToken, {
+      httpOnly: false,
+      secure: true,
+      path: '/',
+      maxAge: 60 * 60 * 24,
+      sameSite: 'strict',
     })
     return response
   } catch {

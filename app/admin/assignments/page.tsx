@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { adminFetch } from '@/app/admin/_utils/admin-fetch'
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
@@ -127,7 +128,7 @@ export default function AssignmentsPage() {
     setRunning(true)
     setError('')
     try {
-      const res = await fetch('/api/admin/grand-assignment', {
+      const res = await adminFetch('/api/admin/grand-assignment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'run' }),
@@ -149,7 +150,7 @@ export default function AssignmentsPage() {
     setRunning(true)
     setError('')
     try {
-      const res = await fetch('/api/admin/grand-assignment', {
+      const res = await adminFetch('/api/admin/grand-assignment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'rerun' }),
@@ -170,7 +171,7 @@ export default function AssignmentsPage() {
     setSendResult('')
     setError('')
     try {
-      const res = await fetch('/api/admin/send-assignment-emails', { method: 'POST' })
+      const res = await adminFetch('/api/admin/send-assignment-emails', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
       setSendResult(data.message)
@@ -185,7 +186,7 @@ export default function AssignmentsPage() {
   async function sendPlayerEmail(playerId: string) {
     setSendingPlayerIds(prev => new Set(prev).add(playerId))
     try {
-      const res = await fetch('/api/admin/send-assignment-emails', {
+      const res = await adminFetch('/api/admin/send-assignment-emails', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerIds: [playerId] }),
@@ -202,7 +203,7 @@ export default function AssignmentsPage() {
 
   async function approveOverflow(playerId: string) {
     try {
-      const res = await fetch('/api/admin/grand-assignment', {
+      const res = await adminFetch('/api/admin/grand-assignment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'approve_overflow', playerId }),

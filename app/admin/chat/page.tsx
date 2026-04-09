@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { adminFetch } from '@/app/admin/_utils/admin-fetch'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -41,7 +42,7 @@ export default function ChatPage() {
     const apiMessages = newMessages.map(m => ({ role: m.role, content: m.content }))
 
     try {
-      const res = await fetch('/api/admin/chat', {
+      const res = await adminFetch('/api/admin/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: apiMessages }),

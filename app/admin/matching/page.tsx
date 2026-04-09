@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { adminFetch } from '@/app/admin/_utils/admin-fetch'
 
 type Status = 'idle' | 'loading' | 'done' | 'error'
 type MatchingProcessStatus = 'idle' | 'running' | 'completed' | 'failed'
@@ -106,7 +107,7 @@ export default function MatchingPage() {
   }, [matchingStatus, startedAt])
 
   async function resetStuckJob() {
-    await fetch('/api/admin/trigger-matching', { method: 'DELETE' })
+    await adminFetch('/api/admin/trigger-matching', { method: 'DELETE' })
     setMatchingStatus('idle')
     setMatchingError('')
     setStartedAt(null)
@@ -137,7 +138,7 @@ export default function MatchingPage() {
   async function triggerMatching() {
     setMatchingError('')
     try {
-      const res = await fetch('/api/admin/trigger-matching', { method: 'POST' })
+      const res = await adminFetch('/api/admin/trigger-matching', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) {
         setMatchingError(res.status === 409 ? 'Matching already in progress' : data.error || 'Failed to start matching')

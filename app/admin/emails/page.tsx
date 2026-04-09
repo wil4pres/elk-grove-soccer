@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { adminFetch } from '@/app/admin/_utils/admin-fetch'
 
 interface NotificationRecord {
   notificationId: string
@@ -48,7 +49,7 @@ export default function EmailLogPage() {
     setSendResult('')
     setError('')
     try {
-      const res = await fetch('/api/admin/send-assignment-emails', { method: 'POST' })
+      const res = await adminFetch('/api/admin/send-assignment-emails', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
       setSendResult(data.message)

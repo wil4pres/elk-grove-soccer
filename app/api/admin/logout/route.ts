@@ -12,5 +12,12 @@ export async function POST(req: NextRequest) {
     maxAge: 0,
     sameSite: 'lax',
   })
+  res.cookies.set('csrf_token', '', {
+    httpOnly: false,
+    secure: true,
+    path: '/',
+    maxAge: 0,
+    sameSite: 'strict',
+  })
   return res
 }

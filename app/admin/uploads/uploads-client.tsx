@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { adminFetch } from '@/app/admin/_utils/admin-fetch'
 
 // ─── Shared CSV parser ─────────────────────────────────────────────────────────
 
@@ -561,7 +562,7 @@ function TeamImportUpload() {
     setResult(null)
 
     try {
-      const res = await fetch('/api/admin/import-teams', {
+      const res = await adminFetch('/api/admin/import-teams', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
@@ -786,7 +787,7 @@ function CoachImportUpload() {
     setResult(null)
 
     try {
-      const res = await fetch('/api/admin/import-coaches', {
+      const res = await adminFetch('/api/admin/import-coaches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
@@ -995,7 +996,7 @@ function FieldImportUpload() {
     setResult(null)
 
     try {
-      const res = await fetch('/api/admin/import-fields', {
+      const res = await adminFetch('/api/admin/import-fields', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',

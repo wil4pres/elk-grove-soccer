@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { adminFetch } from '@/app/admin/_utils/admin-fetch'
 
 const navItems = [
   { href: '/admin', label: 'Dashboard', exact: true },
@@ -45,7 +46,7 @@ export function AdminNav() {
         </div>
         <button
           onClick={async () => {
-            await fetch('/api/admin/logout', { method: 'POST', credentials: 'same-origin' })
+            await adminFetch('/api/admin/logout', { method: 'POST', credentials: 'same-origin' })
             window.location.href = '/admin/login'
           }}
           className="text-white/40 hover:text-white text-xs ml-3 shrink-0 transition-colors"
