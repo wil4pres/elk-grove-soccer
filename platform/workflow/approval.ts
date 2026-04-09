@@ -232,7 +232,7 @@ export async function autoAssign(
     await sendAssignmentEmail(record)
     record.parentEmailSent = true
     record.parentEmailSentAt = new Date().toISOString()
-    console.log(`  ✅ Auto-assigned: ${profile.firstName} ${profile.lastName} → ${team.name}`)
+    console.log(`  ✅ Auto-assigned: ${profileId} → ${team.name}`)
   }
 }
 

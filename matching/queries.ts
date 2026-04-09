@@ -49,10 +49,8 @@ function suggestForPlayer(playerId: number) {
   if (!player) { console.log('Player not found'); return }
 
   console.log('PLAYER:')
-  console.log(`  ${player.first_name} ${player.last_name} | ${player.gender} | DOB: ${player.birth_date}`)
-  console.log(`  Package: ${player.package_name}`)
+  console.log(`  ID: ${playerId} | ${player.gender} | Package: ${player.package_name}`)
   console.log(`  School/Grade: ${player.school_and_grade}`)
-  console.log(`  Special Request: ${player.special_request || '(none)'}`)
   console.log(`  New/Returning: ${player.new_or_returning}`)
 
   // Last year's team

@@ -164,6 +164,6 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     console.error('[matching] POST error:', msg, e)
-    return NextResponse.json({ error: msg || 'Failed to start matching' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to start matching' }, { status: 500 })
   }
 }

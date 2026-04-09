@@ -232,6 +232,9 @@ Even in test mode (where all emails go to the test address), the `egs-notificati
 | 🔴 Immediate | API key timing-safe comparison | Low | ✅ Fixed |
 | 🔴 Immediate | Fix `/api/health` auth | Low | ✅ Fixed |
 | 🔴 Immediate | Fix `/api/fields/save` and `/api/fields/delete` auth | Low | ✅ Fixed |
+| 🔴 Immediate | Error messages leaking internals (6 routes) | Low | ✅ Fixed |
+| 🔴 Immediate | Unvalidated body written to DynamoDB (10 routes) | Low | ✅ Fixed |
+| 🔴 Immediate | PII (player names) logged to CloudWatch | Low | ✅ Fixed |
 | 🔴 Immediate | Rotate all exposed credentials | Low | ⏳ Pending |
 | 🔴 Immediate | Per-user admin accounts | High | ⏳ Deferred |
 | 🟠 Before Launch | Enable DynamoDB encryption at rest | Low | — |

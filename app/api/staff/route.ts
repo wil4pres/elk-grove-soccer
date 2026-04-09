@@ -18,8 +18,17 @@ export async function POST(req: Request) {
   try {
     const body = await req.json()
     if (!body.id || !body.name) return badRequest('id and name are required')
-    await db.send(new PutCommand({ TableName: TABLE, Item: body }))
-    return created(body)
+    const item = {
+      id: String(body.id).trim(),
+      name: String(body.name ?? ''),
+      role: String(body.role ?? ''),
+      bio: String(body.bio ?? ''),
+      email: body.email ? String(body.email) : undefined,
+      phone: body.phone ? String(body.phone) : undefined,
+      sortOrder: Number(body.sortOrder ?? 99),
+    }
+    await db.send(new PutCommand({ TableName: TABLE, Item: item }))
+    return created(item)
   } catch (e) {
     return serverError(e)
   }

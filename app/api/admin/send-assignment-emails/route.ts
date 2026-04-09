@@ -17,8 +17,8 @@ export async function GET(req: NextRequest) {
     const notifications = await loadNotifications(SEASON)
     return NextResponse.json({ notifications })
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
-    return NextResponse.json({ error: msg }, { status: 500 })
+    console.error('[send-assignment-emails GET]', e instanceof Error ? e.message : String(e))
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
@@ -105,6 +105,6 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     console.error('[send-assignment-emails]', msg)
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

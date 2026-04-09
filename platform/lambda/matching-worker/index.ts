@@ -350,9 +350,9 @@ async function runPipeline(season: string, messageId: string, startedAt: string)
         p.extraction_school_lat = school.lat
         p.extraction_school_lng = school.lng
         guessed++
-        console.log(`[augur] ${p.player_first_name} ${p.player_last_name}: Augur guessed school → ${school.name} (grade ${grade}, "${p.school_and_grade}")`)
+        console.log(`[augur] ${p.player_id}: Augur guessed school → ${school.name} (grade ${grade})`)
       } catch (e) {
-        console.error(`[augur] School guess failed for ${p.player_first_name} ${p.player_last_name}:`, e instanceof Error ? e.message : e)
+        console.error(`[augur] School guess failed for ${p.player_id}:`, e instanceof Error ? e.message : e)
       }
 
       // Update progress every 10 players
@@ -451,10 +451,10 @@ async function runPipeline(season: string, messageId: string, startedAt: string)
           if (ex.teams.length) parts.push(`teams: ${ex.teams.join(', ')}`)
           if (ex.school_name) parts.push(`school: ${ex.school_name}`)
           if (ex.notes) parts.push(`notes: ${ex.notes}`)
-          console.log(`[augur] ${p.player_first_name} ${p.player_last_name}: ${parts.length ? parts.join(' | ') : '(no extractable data)'}`)
+          console.log(`[augur] ${p.player_id}: ${parts.length ? parts.join(' | ') : '(no extractable data)'}`)
         } catch (e) {
           failed++
-          console.error(`[augur] Extraction failed for ${p.player_first_name} ${p.player_last_name}:`, e instanceof Error ? e.message : e)
+          console.error(`[augur] Extraction failed for ${p.player_id}:`, e instanceof Error ? e.message : e)
         }
 
         // Update progress every 10 players
@@ -500,10 +500,10 @@ async function runPipeline(season: string, messageId: string, startedAt: string)
           p.extraction_school_lat = school.lat
           p.extraction_school_lng = school.lng
           coordsSet++
-          console.log(`[augur] ${p.player_first_name} ${p.player_last_name}: school coords → ${school.name} (${school.lat.toFixed(4)}, ${school.lng.toFixed(4)})`)
+          console.log(`[augur] ${p.player_id}: school coords → ${school.name} (${school.lat.toFixed(4)}, ${school.lng.toFixed(4)})`)
         }
       } catch (e) {
-        console.error(`[augur] School coords failed for ${p.player_first_name} ${p.player_last_name}:`, e instanceof Error ? e.message : e)
+        console.error(`[augur] School coords failed for ${p.player_id}:`, e instanceof Error ? e.message : e)
       }
 
       if (i % 20 === 0 || i === needSchoolCoords.length - 1) {

@@ -21,8 +21,17 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     const { id } = await params
     const body = await req.json()
     if (!body.id || body.id !== id) return badRequest('id mismatch')
-    await db.send(new PutCommand({ TableName: TABLE, Item: body }))
-    return ok(body)
+    const item = {
+      id: String(body.id).trim(),
+      name: String(body.name ?? ''),
+      gradYear: Number(body.gradYear ?? 0),
+      currentRole: String(body.currentRole ?? ''),
+      currentOrg: String(body.currentOrg ?? ''),
+      quote: String(body.quote ?? ''),
+      milestones: Array.isArray(body.milestones) ? body.milestones : [],
+    }
+    await db.send(new PutCommand({ TableName: TABLE, Item: item }))
+    return ok(item)
   } catch (e) {
     return serverError(e)
   }

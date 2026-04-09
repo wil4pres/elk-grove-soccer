@@ -18,8 +18,20 @@ export async function POST(req: Request) {
   try {
     const body = await req.json()
     if (!body.id || !body.name) return badRequest('id and name are required')
-    await db.send(new PutCommand({ TableName: TABLE, Item: body }))
-    return created(body)
+    const item = {
+      id: String(body.id).trim(),
+      name: String(body.name ?? ''),
+      complex: String(body.complex ?? ''),
+      address: String(body.address ?? ''),
+      parkingInfo: String(body.parkingInfo ?? ''),
+      amenities: String(body.amenities ?? ''),
+      status: String(body.status ?? 'open'),
+      notes: String(body.notes ?? ''),
+      updatedBy: String(body.updatedBy ?? ''),
+      updatedAt: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+    }
+    await db.send(new PutCommand({ TableName: TABLE, Item: item }))
+    return created(item)
   } catch (e) {
     return serverError(e)
   }
