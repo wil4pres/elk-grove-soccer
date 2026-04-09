@@ -1,3 +1,4 @@
+import bcrypt from 'bcryptjs'
 import { AuthResult } from './types'
 import { getAdminPassword } from '@/lib/secrets'
 
@@ -6,14 +7,15 @@ export async function validatePassword(password: string): Promise<AuthResult> {
     return { success: false, error: 'Password is required' }
   }
 
-  const adminPassword = await getAdminPassword()
+  const adminPasswordHash = await getAdminPassword()
 
-  if (!adminPassword) {
+  if (!adminPasswordHash) {
     console.error('Admin password not configured in SSM or environment')
     return { success: false, error: 'Authentication not configured' }
   }
 
-  if (password !== adminPassword) {
+  const valid = await bcrypt.compare(password, adminPasswordHash)
+  if (!valid) {
     console.warn('Invalid login attempt')
     return { success: false, error: 'Invalid password' }
   }

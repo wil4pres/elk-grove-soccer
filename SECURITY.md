@@ -14,29 +14,23 @@ This application handles sensitive PII for minors: names, birth dates, parent em
 
 ## 🔴 Critical — Fix Immediately
 
-### 1. Secrets Exposed in `next.config.ts`
+### ✅ 1. Secrets Exposed in `next.config.ts` — FIXED 2026-04-08
 
-All environment variables are forwarded via the `env: {}` block in `next.config.ts`, which bundles them into the **client-side JavaScript**. This means every user who opens browser DevTools can read:
+~~All environment variables are forwarded via the `env: {}` block in `next.config.ts`, which bundles them into the **client-side JavaScript**.~~
 
-- AWS DynamoDB access key and secret
-- Admin password
-- Session signing secret (allows forging valid JWT sessions)
-- Anthropic API key
-- Admin API key
-
-**Fix:** Only variables prefixed with `NEXT_PUBLIC_` should be in the `env` block. All server-only secrets must be accessed exclusively via `process.env` inside API routes or server components — never forwarded to the client.
+**Resolution:** Removed the entire `env: {}` block from `next.config.ts`. All secrets are accessed via `process.env` server-side only.
 
 ---
 
-### 2. Admin Password Stored and Compared as Plain Text
+### ✅ 2. Admin Password Stored and Compared as Plain Text — FIXED 2026-04-08
 
-The admin login checks `password !== adminPassword` with no hashing. If the password or the source code is ever exposed, the credential is immediately usable.
+~~The admin login checks `password !== adminPassword` with no hashing.~~
 
-**Fix:** Hash the stored password with bcrypt (or argon2) at setup time. Compare submitted passwords using the library's constant-time compare function, never with `===`.
+**Resolution:** Password hashed with bcrypt (cost 12) in `lib/auth/password.ts`. Hash stored in `.env.local` and SSM `/egs/ADMIN_PASSWORD`. Comparison uses `bcrypt.compare()`.
 
 ---
 
-### 3. Single Shared Admin Password — No Per-User Accounts
+### ⏳ 3. Single Shared Admin Password — No Per-User Accounts — DEFERRED
 
 All coordinators share one password with no individual identity. There is no audit trail of which coordinator performed which action (assignment, import, email send).
 
@@ -44,27 +38,40 @@ All coordinators share one password with no individual identity. There is no aud
 
 ---
 
-### 4. Timing-Safe Comparison Not Used for API Key
+### ✅ 4. Timing-Safe Comparison Not Used for API Key — FIXED 2026-04-08
 
-The API key check uses `key === process.env.ADMIN_API_KEY`, which is vulnerable to timing attacks allowing an attacker to guess the key one character at a time.
+~~The API key check uses `key === process.env.ADMIN_API_KEY`, which is vulnerable to timing attacks.~~
 
-**Fix:** Use Node's `crypto.timingSafeEqual()` for all secret comparisons.
-
----
-
-### 5. `/api/health` Leaks Environment Information
-
-The health endpoint is publicly accessible and returns environment and database connection details. This information aids attackers in fingerprinting the infrastructure.
-
-**Fix:** Gate the health endpoint behind session authentication, or strip all environment metadata from the response and return only `{ status: "ok" }`.
+**Resolution:** `requireAdminKey()` in `lib/api-helpers.ts` now uses `crypto.timingSafeEqual()`.
 
 ---
 
-### 6. Write Routes Missing Auth Checks
+### ✅ 5. `/api/health` Leaks Environment Information — FIXED 2026-04-08
 
-`/api/fields/save` and `/api/fields/delete` appear to have no authentication guard. Any unauthenticated user can modify field data.
+~~The health endpoint returns environment and database connection details publicly.~~
 
-**Fix:** Apply the same session or API key check used on all other write routes.
+**Resolution:** Health endpoint now returns only `{ ok: true }` or `{ ok: false }`.
+
+---
+
+### ✅ 6. Write Routes Missing Auth Checks — FIXED 2026-04-08
+
+~~`/api/fields/save` and `/api/fields/delete` had no authentication guard.~~
+
+**Resolution:** Both routes now call `requireAdminKey()` and return 401 if the check fails.
+
+---
+
+### ⏳ 7. Rotate All Currently Exposed Credentials — PENDING
+
+Credentials in `.env.local` were visible during this session. Treat as compromised and rotate:
+
+- DynamoDB IAM Access Key / Secret — AWS IAM console
+- Session Secret — generate new random value
+- Anthropic API Key — console.anthropic.com
+- Admin API Key
+- Turnstile Secret Key
+- Resend API Key
 
 ---
 
@@ -218,24 +225,25 @@ Even in test mode (where all emails go to the test address), the `egs-notificati
 
 ## Remediation Priority Order
 
-| Priority | Item | Effort |
-|----------|------|--------|
-| 🔴 Immediate | Remove secrets from `next.config.ts` env block | Low |
-| 🔴 Immediate | Rotate all exposed credentials | Low |
-| 🔴 Immediate | Hash admin password with bcrypt | Low |
-| 🔴 Immediate | Fix `/api/health` auth | Low |
-| 🔴 Immediate | Fix `/api/fields/save` and `/api/fields/delete` auth | Low |
-| 🟠 Before Launch | Enable DynamoDB encryption at rest | Low |
-| 🟠 Before Launch | Add audit logging | Medium |
-| 🟠 Before Launch | Add security response headers | Low |
-| 🟠 Before Launch | Add input validation (Zod) to CSV imports | Medium |
-| 🟠 Before Launch | Centralize session validation in middleware | Medium |
-| 🟠 Before Launch | Distributed rate limiting | Medium |
-| 🟠 Before Launch | Per-user admin accounts | High |
-| 🟡 Good Practice | CSRF tokens | Medium |
-| 🟡 Good Practice | IAM role instead of access key | Medium |
-| 🟡 Good Practice | Data retention/deletion policy | High |
-| 🟡 Good Practice | File/row size limits on imports | Low |
+| Priority | Item | Effort | Status |
+|----------|------|--------|--------|
+| 🔴 Immediate | Remove secrets from `next.config.ts` env block | Low | ✅ Fixed |
+| 🔴 Immediate | Hash admin password with bcrypt | Low | ✅ Fixed |
+| 🔴 Immediate | API key timing-safe comparison | Low | ✅ Fixed |
+| 🔴 Immediate | Fix `/api/health` auth | Low | ✅ Fixed |
+| 🔴 Immediate | Fix `/api/fields/save` and `/api/fields/delete` auth | Low | ✅ Fixed |
+| 🔴 Immediate | Rotate all exposed credentials | Low | ⏳ Pending |
+| 🔴 Immediate | Per-user admin accounts | High | ⏳ Deferred |
+| 🟠 Before Launch | Enable DynamoDB encryption at rest | Low | — |
+| 🟠 Before Launch | Add audit logging | Medium | — |
+| 🟠 Before Launch | Add security response headers | Low | — |
+| 🟠 Before Launch | Add input validation (Zod) to CSV imports | Medium | — |
+| 🟠 Before Launch | Centralize session validation in middleware | Medium | — |
+| 🟠 Before Launch | Distributed rate limiting | Medium | — |
+| 🟡 Good Practice | CSRF tokens | Medium | — |
+| 🟡 Good Practice | IAM role instead of access key | Medium | — |
+| 🟡 Good Practice | Data retention/deletion policy | High | — |
+| 🟡 Good Practice | File/row size limits on imports | Low | — |
 
 ---
 

@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { PutCommand } from '@aws-sdk/lib-dynamodb'
 import { db } from '@/lib/dynamo'
 import { revalidatePath } from 'next/cache'
+import { requireAdminKey } from '@/lib/api-helpers'
 
 export async function POST(req: NextRequest) {
+  if (!requireAdminKey(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const data = await req.json()
   const id = (data.id as string)?.trim()
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })

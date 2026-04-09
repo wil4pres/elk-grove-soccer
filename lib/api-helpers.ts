@@ -28,5 +28,10 @@ export function serverError(e: unknown) {
 
 export function requireAdminKey(req: Request): boolean {
   const key = req.headers.get('x-api-key')
-  return key === process.env.ADMIN_API_KEY && !!process.env.ADMIN_API_KEY
+  const expected = process.env.ADMIN_API_KEY
+  if (!key || !expected) return false
+  const a = Buffer.from(key)
+  const b = Buffer.from(expected)
+  if (a.length !== b.length) return false
+  return require('crypto').timingSafeEqual(a, b)
 }
