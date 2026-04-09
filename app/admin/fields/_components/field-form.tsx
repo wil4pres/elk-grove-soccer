@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
+import { adminFetch } from '@/app/admin/_utils/admin-fetch'
 
 const KNOWN_COMPLEXES: Record<string, { address: string; parking: string; amenities: string }> = {
   'Cherry Island Complex': {
@@ -65,10 +66,9 @@ export function FieldForm({ editingField }: { editingField: EditingField }) {
     setError('')
     setSaving(true)
     try {
-      const res = await fetch('/api/fields/save', {
+      const res = await adminFetch('/api/fields/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
         body: JSON.stringify({
           id: fieldId,
           name,

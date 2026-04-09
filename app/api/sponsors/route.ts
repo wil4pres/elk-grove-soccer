@@ -1,6 +1,6 @@
 import { ScanCommand, PutCommand } from '@aws-sdk/lib-dynamodb'
 import { db } from '@/lib/dynamo'
-import { ok, created, badRequest, unauthorized, serverError, requireAdminKey } from '@/lib/api-helpers'
+import { ok, created, badRequest, unauthorized, serverError, requireAdminSession } from '@/lib/api-helpers'
 
 const TABLE = 'egs-sponsors'
 
@@ -14,7 +14,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  if (!requireAdminKey(req)) return unauthorized()
+  if (!await requireAdminSession(req)) return unauthorized()
   try {
     const body = await req.json()
     if (!body.id || !body.name) return badRequest('id and name are required')

@@ -1,5 +1,6 @@
 'use client'
 import { useTransition } from 'react'
+import { adminFetch } from '@/app/admin/_utils/admin-fetch'
 
 interface Props {
   /** Server action to call (used when apiUrl is not provided) */
@@ -18,10 +19,9 @@ export function ConfirmDelete({ action, apiUrl, apiBody, label = 'Delete' }: Pro
     if (!confirm('Delete this item? This cannot be undone.')) return
 
     if (apiUrl) {
-      fetch(apiUrl, {
+      adminFetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
         body: JSON.stringify(apiBody ?? {}),
       }).then(() => {
         window.location.reload()

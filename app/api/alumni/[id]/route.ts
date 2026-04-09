@@ -1,6 +1,6 @@
 import { GetCommand, PutCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb'
 import { db } from '@/lib/dynamo'
-import { ok, notFound, badRequest, unauthorized, serverError, requireAdminKey } from '@/lib/api-helpers'
+import { ok, notFound, badRequest, unauthorized, serverError, requireAdminSession } from '@/lib/api-helpers'
 
 const TABLE = 'egs-alumni'
 
@@ -16,7 +16,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 }
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!requireAdminKey(req)) return unauthorized()
+  if (!await requireAdminSession(req)) return unauthorized()
   try {
     const { id } = await params
     const body = await req.json()
@@ -38,7 +38,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 }
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!requireAdminKey(req)) return unauthorized()
+  if (!await requireAdminSession(req)) return unauthorized()
   try {
     const { id } = await params
     await db.send(new DeleteCommand({ TableName: TABLE, Key: { id } }))
