@@ -5,12 +5,29 @@ import { compare } from 'bcryptjs'
 export async function GET(req: NextRequest) {
   const password = req.nextUrl.searchParams.get('p') ?? ''
 
-  // Directly fetch from SSM to bypass cache
+  const envInfo = {
+    ADMIN_PASSWORD_len: (process.env.ADMIN_PASSWORD ?? '').length,
+    DYNAMO_ACCESS_KEY_ID_prefix: (process.env.DYNAMO_ACCESS_KEY_ID ?? '').substring(0, 6),
+    DYNAMO_REGION: process.env.DYNAMO_REGION ?? '',
+    AWS_REGION: process.env.AWS_REGION ?? '',
+    AWS_EXECUTION_ENV: process.env.AWS_EXECUTION_ENV ?? '',
+    AWS_ACCESS_KEY_ID_prefix: (process.env.AWS_ACCESS_KEY_ID ?? '').substring(0, 6),
+  }
+
+  // Try SSM with explicit credentials if available
   let ssmValue = ''
   let ssmError = ''
   try {
     const { SSMClient, GetParameterCommand } = await import('@aws-sdk/client-ssm')
-    const ssm = new SSMClient({ region: 'us-east-1' })
+    const region = process.env.DYNAMO_REGION ?? process.env.AWS_REGION ?? 'us-east-1'
+    const ssmConfig: Record<string, unknown> = { region }
+    if (process.env.DYNAMO_ACCESS_KEY_ID) {
+      ssmConfig.credentials = {
+        accessKeyId: process.env.DYNAMO_ACCESS_KEY_ID,
+        secretAccessKey: process.env.DYNAMO_SECRET_ACCESS_KEY!,
+      }
+    }
+    const ssm = new SSMClient(ssmConfig)
     const res = await ssm.send(new GetParameterCommand({ Name: '/egs/ADMIN_PASSWORD', WithDecryption: true }))
     ssmValue = res.Parameter?.Value ?? ''
   } catch (e) {
@@ -29,8 +46,7 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({
-    envValueLen: envValue.length,
-    envValuePrefix: envValue.substring(0, 7),
+    envInfo,
     ssmValueLen: ssmValue.length,
     ssmValuePrefix: ssmValue.substring(0, 7),
     ssmError,
