@@ -18,10 +18,10 @@ setInterval(() => {
 interface RuleConfig { maxRequests: number; windowMs: number }
 
 const RATE_RULES: Array<{ match: (pathname: string, method: string) => boolean } & RuleConfig> = [
-  // Login brute-force: 5 attempts per 15 min
+  // Login brute-force: 20 attempts per 15 min
   {
     match: (p) => p === '/api/admin/login',
-    maxRequests: 5,
+    maxRequests: 20,
     windowMs: 15 * 60 * 1000,
   },
   // Health endpoint leaks env info: 10 per min

@@ -16,7 +16,7 @@ function getIP(req: NextRequest): string {
 export async function POST(req: NextRequest) {
   try {
     const ip = getIP(req)
-    const { allowed, retryAfterSec } = await checkRateLimit(`login:${ip}`, 5, 15 * 60 * 1000)
+    const { allowed, retryAfterSec } = await checkRateLimit(`login:${ip}`, 20, 15 * 60 * 1000)
     if (!allowed) {
       return NextResponse.json(
         { error: 'Too many login attempts. Try again in 15 minutes.' },

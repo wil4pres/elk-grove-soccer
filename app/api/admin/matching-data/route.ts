@@ -10,6 +10,6 @@ export async function GET(_req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     console.error('[matching-data]', msg)
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
