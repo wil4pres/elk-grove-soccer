@@ -181,9 +181,11 @@ export async function sendAssignmentEmail(
   }
 
   // Log to DynamoDB regardless of send success
+  // TTL: 2 years from now (PII audit trail, auto-deleted by DynamoDB)
+  const TWO_YEARS_SEC = 2 * 365 * 24 * 60 * 60
   await db.send(new PutCommand({
     TableName: 'egs-notifications',
-    Item: record,
+    Item: { ...record, ttl: Math.floor(Date.now() / 1000) + TWO_YEARS_SEC },
   }))
 
   return record

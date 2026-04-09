@@ -193,19 +193,24 @@ CSV imports have no enforced ceiling on rows or request body size, which could a
 
 ---
 
-### 19. AWS IAM Over-Privileged Credentials
+### ✅ 19. AWS IAM Over-Privileged Credentials — FIXED 2026-04-08
 
-The DynamoDB IAM key in use appears to be a long-lived access key. Long-lived keys are higher risk if rotated infrequently.
+~~The DynamoDB IAM key in use appears to be a long-lived access key.~~
 
-**Fix:** Replace the IAM user key with an IAM Role attached to the Amplify deployment (instance profile). This eliminates the need for long-lived credentials in environment variables entirely. If a key must be used, scope it to the minimum necessary DynamoDB actions on only the required tables.
+**Resolution:** `egs-amplify-ssr-role` was already attached to the Amplify deployment. Production never used long-lived keys — `DYNAMO_ACCESS_KEY_ID` was only in `.env.local` for local dev. Role policy updated to cover all tables (`egs-notifications`, `egs-grand-assignments`, `egs-matching-state`, `egs-coaches`, `egs-audit`, `egs-rate-limits`) and added `sqs:SendMessage` for the matching queue. Local dev continues to use `.env.local` credentials.
 
 ---
 
-### 20. `egs-notifications` Table Stores Intended Parent Emails in Test Mode
+### ✅ 20. `egs-notifications` Table — FIXED 2026-04-08
 
-Even in test mode (where all emails go to the test address), the `egs-notifications` log table records the intended parent email and player name for every send. This is a correct audit trail, but it means PII is accumulating in a log table during testing.
+**PII content:** This table stores player names, parent email addresses, and team assignment details for every email send. It is a required audit trail but must be treated as PII.
 
-**Fix:** Ensure this table is also covered by the encryption at rest and retention policy decisions above. Document clearly that this table contains PII.
+**Resolution:**
+
+- TTL enabled on `egs-notifications` (attribute: `ttl`) — records auto-expire after 2 years
+- New notification records written with a `ttl` field set to 2 years from send time
+- Table is covered by DynamoDB's default AES-256 encryption at rest
+- Existing records (pre-TTL) have no `ttl` field and will not auto-expire — manually purge if needed before launch
 
 ---
 
