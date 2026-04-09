@@ -3,8 +3,8 @@ import { compare } from 'bcryptjs'
 import { getAdminPassword } from '@/lib/secrets'
 
 // Temporary debug endpoint — REMOVE AFTER DIAGNOSIS
-export async function POST(req: NextRequest) {
-  const { password } = await req.json()
+export async function GET(req: NextRequest) {
+  const password = req.nextUrl.searchParams.get('p') ?? ''
   const storedHash = await getAdminPassword()
   const hashLen = storedHash.length
   const hashPrefix = storedHash.substring(0, 7)
