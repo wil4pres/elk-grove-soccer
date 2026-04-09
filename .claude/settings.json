@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "allow": [
+      "Bash(*)",
+      "Bash(timeout 15 curl -s -v http://localhost:3000/api/admin/matching-data -b \"admin_session=test\")",
+      "Bash(gtimeout 15 curl -s http://localhost:3000/api/admin/matching-data -b \"admin_session=test\")",
+      "Bash(curl -s -m 15 http://localhost:3000/api/admin/matching-data -b \"admin_session=test\")",
+      "Bash(curl -s http://localhost:3000/api/health)",
+      "Bash(node -e ':*)",
+      "Bash(curl -s -m 30 http://localhost:3000/api/admin/matching-data -b \"admin_session=test\")",
+      "Bash(curl -s -m 10 http://localhost:3000/api/health)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(bash deploy.sh)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(aws lambda:*)",
+      "Bash(rm -f matching-worker.zip)",
+      "Bash(pip3 show:*)",
+      "Bash(pip3 install:*)",
+      "Bash(git-filter-repo --path matching/report.html --invert-paths --force)",
+      "Bash(gh repo:*)",
+      "Bash(gh api:*)",
+      "Bash(aws iam:*)",
+      "Bash(aws configure:*)",
+      "Bash(AWS_PROFILE=elkgrovesoccer npx tsx platform/dynamo/schema.ts)",
+      "Bash(node -e \"const a = require\\('@anthropic-ai/sdk'\\); console.log\\(Object.keys\\(a\\)\\)\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://api.anthropic.com/v1/messages -H \"x-api-key: sk-ant-api03-gEn3h\" -H \"content-type: application/json\" -H \"anthropic-version: 2023-06-01\" -d '{\"model\":\"claude-haiku-4-5-20251001\",\"max_tokens\":10,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}')",
+      "Bash(curl -s \"https://sacramento.soccer/api/admin/chat\")"
+    ],
+    "additionalDirectories": [
+      "/Users/wil4pres/.claude"
+    ]
+  }
+}
