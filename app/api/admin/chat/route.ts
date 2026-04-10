@@ -1,9 +1,11 @@
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { tools, executeTool, SYSTEM_PROMPT } from '@/lib/coordinator-chat'
+import { getAnthropicApiKey } from '@/lib/secrets'
 
-function getClient() {
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+async function getClient() {
+  const apiKey = await getAnthropicApiKey()
+  return new Anthropic({ apiKey })
 }
 
 interface ChatMessage {
@@ -56,7 +58,7 @@ async function runConversation(
     let toolUseBlocks: Anthropic.ToolUseBlock[] = []
 
     // Stream the response
-    const client = getClient()
+    const client = await getClient()
     const stream = client.messages.stream({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 2048,

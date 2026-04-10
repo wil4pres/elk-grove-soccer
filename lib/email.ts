@@ -8,6 +8,7 @@
 
 import { Resend } from 'resend'
 import { PutCommand, ScanCommand } from '@aws-sdk/lib-dynamodb'
+import { getResendApiKey } from '@/lib/secrets'
 import { db } from './dynamo'
 import { randomUUID } from 'crypto'
 import type { GrandAssignmentRow } from './grand-assignment'
@@ -134,7 +135,7 @@ export async function sendAssignmentEmail(
   guardianEmail: string,
   season: string,
 ): Promise<NotificationRecord> {
-  const resend = new Resend(process.env.RESEND_API_KEY)
+  const resend = new Resend(await getResendApiKey())
   const notificationId = randomUUID()
   const now = new Date().toISOString()
 

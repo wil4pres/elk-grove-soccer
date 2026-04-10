@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
+import { getResendApiKey } from '@/lib/secrets'
 
 const TO_EMAIL = 'info@elkgrovesoccer.com'
 
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Security check failed: ${(errorCodes ?? []).join(', ')}` }, { status: 400 })
     }
 
-    const resend = new Resend(process.env.RESEND_API_KEY)
+    const resend = new Resend(await getResendApiKey())
 
     await resend.emails.send({
       from: 'Elk Grove Soccer Contact <contact@sacramento.soccer>',

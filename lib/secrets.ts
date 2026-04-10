@@ -31,3 +31,18 @@ export async function getAdminPassword(): Promise<string> {
   if (process.env.ADMIN_PASSWORD) return process.env.ADMIN_PASSWORD
   return getSecret('/egs/ADMIN_PASSWORD')
 }
+
+export async function getAnthropicApiKey(): Promise<string> {
+  if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY
+  return getSecret('/egs/ANTHROPIC_API_KEY')
+}
+
+export async function getMatchingQueueUrl(): Promise<string> {
+  if (process.env.MATCHING_QUEUE_URL) return process.env.MATCHING_QUEUE_URL
+  return getSecret('/egs/MATCHING_QUEUE_URL')
+}
+
+export async function getResendApiKey(): Promise<string> {
+  if (process.env.RESEND_API_KEY) return process.env.RESEND_API_KEY
+  return getSecret('/egs/RESEND_API_KEY')
+}

@@ -3,6 +3,7 @@ import { PutCommand, GetCommand } from '@aws-sdk/lib-dynamodb'
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs'
 import { db } from '@/lib/dynamo'
 import { logAudit } from '@/lib/audit'
+import { getMatchingQueueUrl } from '@/lib/secrets'
 
 const STATE_TABLE = 'egs-matching-state'
 const STATE_ID = 'matching'
@@ -99,7 +100,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const queueUrl = process.env.MATCHING_QUEUE_URL
+    const queueUrl = await getMatchingQueueUrl()
     if (!queueUrl) {
       return NextResponse.json({ error: 'MATCHING_QUEUE_URL env var not set' }, { status: 500 })
     }
