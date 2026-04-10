@@ -159,47 +159,6 @@ export default function MatchingPage() {
   const activePkg = packages.find(p => p.package_name === activeTab)
 
   return (
-    <>
-    {/* Floating trigger button — always visible */}
-    <div style={{ position: 'fixed', top: 60, right: 16, zIndex: 9999, textAlign: 'right' }}>
-      <button
-        onClick={triggerMatching}
-        disabled={matchingStatus === 'running'}
-        style={{
-          background: matchingStatus === 'running' ? '#6b7280' : matchingStatus === 'completed' ? '#15803d' : '#16a34a',
-          color: 'white',
-          border: 'none',
-          borderRadius: 8,
-          padding: '10px 18px',
-          fontSize: 14,
-          fontWeight: 700,
-          cursor: matchingStatus === 'running' ? 'not-allowed' : 'pointer',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-        }}
-      >
-        {matchingStatus === 'running'
-          ? `⏳ ${stepLabel || 'Running…'} ${elapsedSeconds}s`
-          : matchingStatus === 'completed'
-          ? `✓ Done — ${completedTime}`
-          : '▶ Generate Recommendations'}
-      </button>
-      {matchingStatus === 'running' && elapsedSeconds > 120 && (
-        <div style={{ marginTop: 4, fontSize: 11, color: '#f59e0b' }}>
-          Taking a while…{' '}
-          <button onClick={resetStuckJob} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 11, textDecoration: 'underline', padding: 0 }}>
-            Reset stuck job
-          </button>
-        </div>
-      )}
-      {matchingError && (
-        <div style={{ background: '#fee2e2', color: '#b91c1c', borderRadius: 6, padding: '6px 10px', marginTop: 6, fontSize: 12 }}>
-          {matchingError}{' '}
-          <button onClick={resetStuckJob} style={{ background: 'none', border: 'none', color: '#b91c1c', cursor: 'pointer', fontSize: 12, textDecoration: 'underline', padding: 0 }}>
-            Reset &amp; retry
-          </button>
-        </div>
-      )}
-    </div>
     <div className="fixed inset-0 top-14 flex w-full" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
 
       {/* Sidebar */}
@@ -255,7 +214,18 @@ export default function MatchingPage() {
                 : 'Generate Recommendations'
               }
             </button>
-            {matchingError && <span className="text-xs text-red-300">{matchingError}</span>}
+            {matchingStatus === 'running' && elapsedSeconds > 120 && (
+              <span className="text-xs text-amber-300">
+                Taking a while…{' '}
+                <button onClick={resetStuckJob} className="text-red-300 underline bg-transparent border-none cursor-pointer text-xs p-0">Reset stuck job</button>
+              </span>
+            )}
+            {matchingError && (
+              <span className="text-xs text-red-300">
+                {matchingError}{' '}
+                <button onClick={resetStuckJob} className="text-red-300 underline bg-transparent border-none cursor-pointer text-xs p-0">Reset &amp; retry</button>
+              </span>
+            )}
             <button
               onClick={loadData}
               disabled={status === 'loading'}
@@ -335,7 +305,6 @@ export default function MatchingPage() {
         </div>
       </div>
     </div>
-    </>
   )
 }
 
