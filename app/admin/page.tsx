@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import WalkthroughModal from './_components/WalkthroughModal'
 
 export const dynamic = 'force-dynamic'
 
@@ -110,13 +111,14 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      <div className="mt-8 bg-white border border-gray-200 rounded-2xl p-5">
+      <div className="mt-8 bg-white border border-gray-200 rounded-2xl p-5 flex items-center justify-between">
         <p className="text-sm text-gray-500">
           <span className="font-medium text-gray-700">Live site:</span>{' '}
           <a href="https://www.sacramento.soccer" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
             www.sacramento.soccer
           </a>
         </p>
+        <WalkthroughModal />
       </div>
     </div>
   )
