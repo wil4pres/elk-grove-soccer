@@ -231,6 +231,28 @@ export default function AssignmentsPage() {
     ? notifications.filter(n => n.player_id === emailLogPlayer.id)
     : []
 
+  function downloadCSV() {
+    const rows = filteredAssignments.map(a => [
+      a.player_name,
+      a.package_name,
+      a.assigned_team_name,
+      String(a.score),
+      a.signals.join(' | '),
+      a.assigned_by === 'coordinator_override' ? 'Override' : 'Augur Assigned',
+    ])
+    const header = ['Player', 'Package', 'Assigned Team', 'Score', 'Signals', 'By']
+    const csv = [header, ...rows]
+      .map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `egs-assignments-${report?.season ?? 'export'}-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   // ── Render ───────────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -378,6 +400,16 @@ export default function AssignmentsPage() {
                 Clear filters
               </button>
             )}
+
+            <div className="ml-auto">
+              <button
+                onClick={downloadCSV}
+                disabled={filteredAssignments.length === 0}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                ⬇ Download CSV
+              </button>
+            </div>
           </div>
 
           {/* Assignments table */}
