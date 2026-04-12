@@ -159,7 +159,7 @@ export default function MatchingPage() {
   const activePkg = packages.find(p => p.package_name === activeTab)
 
   return (
-    <div className="fixed inset-0 top-14 flex w-full" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+    <div className="fixed inset-0 top-[120px] flex w-full" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
 
       {/* Sidebar */}
       <div className="w-[90px] bg-[#1e3a5f] flex flex-col overflow-y-auto shrink-0">
