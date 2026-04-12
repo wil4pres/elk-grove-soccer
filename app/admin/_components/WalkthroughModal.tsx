@@ -79,9 +79,9 @@ export default function WalkthroughModal() {
     return (
       <button
         onClick={() => { setStep(0); setOpen(true) }}
-        className="text-xs text-gray-400 hover:text-blue-600 transition-colors underline underline-offset-2"
+        className="shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-sm transition-colors"
       >
-        Show walkthrough
+        <span>📖</span> Season Walkthrough
       </button>
     )
   }

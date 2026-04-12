@@ -86,9 +86,12 @@ const sections = [
 export default function AdminDashboard() {
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-500 mt-1">Elk Grove Soccer — Admin Panel</p>
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-500 mt-1">Elk Grove Soccer — Admin Panel</p>
+        </div>
+        <WalkthroughModal />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -111,14 +114,13 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      <div className="mt-8 bg-white border border-gray-200 rounded-2xl p-5 flex items-center justify-between">
+      <div className="mt-8 bg-white border border-gray-200 rounded-2xl p-5">
         <p className="text-sm text-gray-500">
           <span className="font-medium text-gray-700">Live site:</span>{' '}
           <a href="https://www.sacramento.soccer" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
             www.sacramento.soccer
           </a>
         </p>
-        <WalkthroughModal />
       </div>
     </div>
   )
