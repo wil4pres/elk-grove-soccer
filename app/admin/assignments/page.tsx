@@ -690,7 +690,10 @@ function AssignmentTableRow({
         {row.assigned_by === 'coordinator_override' ? (
           <span className="text-[10px] font-medium text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded">Override</span>
         ) : (
-          <span className="text-[10px] text-gray-400">Auto</span>
+          <div className="flex flex-col items-start gap-0.5">
+            <span className="text-lg leading-none">🧑🏿‍💻</span>
+            <span className="text-[10px] font-medium text-sky-700">Augur Assigned</span>
+          </div>
         )}
       </td>
 
