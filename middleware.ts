@@ -80,10 +80,11 @@ function tooManyRequests(retryAfterSec: number) {
   )
 }
 
-// ── Admin auth ────────────────────────────────────────────────────────────────
+// ── Auth ──────────────────────────────────────────────────────────────────────
 
 const COOKIE_NAME = 'admin_session'
-const PUBLIC_ROUTES = ['/admin/login']
+// Routes that never require auth
+const PUBLIC_ROUTES = new Set(['/admin/login', '/api/admin/login', '/api/contact'])
 
 async function verifyToken(token: string): Promise<boolean> {
   const parts = token.split('.')
@@ -165,10 +166,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
-  // Admin auth
-  if (!pathname.startsWith('/admin') || PUBLIC_ROUTES.includes(pathname)) {
-    return NextResponse.next()
-  }
+  // Site-wide auth — every page requires a valid session
+  if (PUBLIC_ROUTES.has(pathname)) return NextResponse.next()
 
   const token = req.cookies.get(COOKIE_NAME)?.value
   if (!token) return NextResponse.redirect(new URL('/admin/login', req.url))
@@ -180,5 +179,8 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/api/:path*'],
+  // Match all routes except Next.js internals and static assets
+  matcher: [
+    '/((?!_next/static|_next/image|favicon\\.svg|icons/|manifest\\.json|sw\\.js).*)',
+  ],
 }
