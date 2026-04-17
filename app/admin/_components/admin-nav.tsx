@@ -17,6 +17,7 @@ const navItems = [
   { href: '/admin/inbox', label: 'Inbox' },
   { href: '/admin/uploads', label: 'Uploads' },
   { href: '/admin/players', label: 'Players' },
+  { href: '/admin/coaches', label: 'Coaches' },
 ]
 
 export function AdminNav() {

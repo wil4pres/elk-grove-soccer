@@ -953,3 +953,107 @@ When teams are cloned from a prior season as placeholders:
 - Any player pre-assigned to a team that no longer exists OR whose coach changed → mark unrostered
 - Unrostered players auto-queued for re-scoring — never silently dropped
 - New age groups with no prior season equivalent skip cloning entirely
+
+---
+
+## Solutions Architecture Diagram
+
+```mermaid
+flowchart TD
+    subgraph Users["Users"]
+        Parents["👨‍👩‍👧 Parents\n(Public Site)"]
+        Admins["🔐 Coordinators\n(Admin Panel)"]
+    end
+
+    subgraph CDN["AWS CloudFront + S3"]
+        CF["CloudFront\nDistribution"]
+        S3["S3\n(Static Assets)"]
+    end
+
+    subgraph Amplify["AWS Amplify SSR"]
+        MW["middleware.ts\n(Rate Limiting + Auth)"]
+        Next["Next.js SSR Lambda\n(App Router)"]
+    end
+
+    subgraph APIs["API Routes (Next.js)"]
+        Login["/api/admin/login"]
+        Matching["/api/admin/trigger-matching"]
+        Assign["/api/admin/assignments"]
+        Contact["/api/contact"]
+        Health["/api/health"]
+    end
+
+    subgraph Async["Async Pipeline (fire-and-forget)"]
+        Pipeline["Background Matching Worker\n(Node.js in SSR Lambda)\n1. Geocode players\n2. Augur school guess\n3. AI extraction\n4. Score all players × teams"]
+    end
+
+    subgraph Data["AWS DynamoDB (us-east-1)"]
+        Players["egs-players\nplayer_id + season"]
+        Teams["egs-teams\nteam_id + season"]
+        Assignments["egs-assignments\nplayer_id + season"]
+        MatchState["egs-matching-state\nid = 'matching'"]
+        Fields["egs-fields"]
+        Programs["egs-programs"]
+        Staff["egs-staff"]
+    end
+
+    subgraph Params["AWS SSM Parameter Store"]
+        SSM["SESSION_SECRET\nADMIN_PASSWORD"]
+    end
+
+    subgraph External["External Services"]
+        Anthropic["🤖 Anthropic Claude\n(Haiku — AI extraction)"]
+        Census["🗺 US Census Geocoder\n(batch lat/lng)"]
+        EGUSD["🏫 EGUSD ArcGIS\n(school locations)"]
+        Resend["📧 Resend\n(contact + future emails)"]
+        Turnstile["🛡 Cloudflare Turnstile\n(spam protection)"]
+        Weather["🌤 Open-Meteo\n(weather API)"]
+        GSheets["📅 Google Sheets\n(live schedule CSV)"]
+    end
+
+    subgraph Monitoring["AWS CloudWatch + SNS"]
+        CW["CloudWatch\nBilling Alarms"]
+        SNS["SNS → Email\n(william.newsom@gmail.com)"]
+    end
+
+    Parents -->|HTTPS| CF
+    Admins -->|HTTPS| CF
+    CF -->|Static| S3
+    CF -->|SSR requests| MW
+    MW -->|Auth OK| Next
+    MW -->|401/403| Admins
+    Next --> APIs
+    Login -->|JWT cookie| Admins
+    Matching -->|fires| Pipeline
+    Pipeline -->|read/write| Players
+    Pipeline -->|read| Teams
+    Pipeline -->|read| Assignments
+    Pipeline -->|status updates| MatchState
+    Pipeline -->|geocode| Census
+    Pipeline -->|school lookup| EGUSD
+    Pipeline -->|AI extraction| Anthropic
+    Assign -->|write| Assignments
+    Contact -->|verify| Turnstile
+    Contact -->|send| Resend
+    Next -->|read| Fields
+    Next -->|read| Programs
+    Next -->|read| Staff
+    Next -->|read| Players
+    Next -->|read| Teams
+    Next -->|read| Assignments
+    Next -->|fallback| SSM
+    Next -->|weather| Weather
+    Next -->|schedule| GSheets
+    CW -->|threshold breach| SNS
+
+    classDef aws fill:#FF9900,color:#000,stroke:#c97200
+    classDef external fill:#4A90D9,color:#fff,stroke:#2d6bab
+    classDef app fill:#232F3E,color:#fff,stroke:#131921
+    classDef data fill:#3F8624,color:#fff,stroke:#2a5c18
+    classDef user fill:#8B5CF6,color:#fff,stroke:#6D28D9
+
+    class CF,S3,Amplify,MW,Next,Login,Matching,Assign,Contact,Health,Pipeline,CW,SNS,SSM aws
+    class Anthropic,Census,EGUSD,Resend,Turnstile,Weather,GSheets external
+    class Players,Teams,Assignments,MatchState,Fields,Programs,Staff data
+    class Parents,Admins user
+```
